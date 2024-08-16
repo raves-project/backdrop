@@ -1,0 +1,10 @@
+[package]
+name = "backdrop"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sea-orm = { version = "1.0.0", features = ["runtime-tokio-rustls", "macros"] }
+serde = { version = "1.0.208", features = ["derive"] }
+thiserror = "1.0.63"
+tokio = { version = "^1.39", features = ["macros"] }
