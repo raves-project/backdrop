@@ -1,8 +1,6 @@
-use serde::{Deserialize, Serialize};
-
 use super::{
     metadata::{FileName, FileSize, Metadata, Resolution},
-    tag::TagIdent,
+    tags::TagIdent,
     Media,
 };
 
@@ -10,7 +8,7 @@ use super::{
 /// kinds.
 ///
 /// You may wish to see `EtcMetadata` for less common fields.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ImageMetadata {
     resolution: Resolution,
     file_size: FileSize,
@@ -18,8 +16,8 @@ pub struct ImageMetadata {
     tags: Vec<TagIdent>,
 }
 
+impl Metadata for ImageMetadata {}
+
 pub type Image = Media<ImageMetadata>;
 
 impl Image {}
-
-impl Metadata for ImageMetadata {}

@@ -42,7 +42,8 @@ Under active development.
 */
 
 pub mod database;
-pub mod types;
+pub mod models;
+pub mod schema;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right

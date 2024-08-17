@@ -4,7 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sea-orm = { version = "1.0.0", features = ["runtime-tokio-rustls", "macros"] }
-serde = { version = "1.0.208", features = ["derive"] }
+diesel = { version = "2.2.2" }
+diesel-async = { version = "0.5.0", features = ["sqlite", "deadpool"] }
 thiserror = "1.0.63"
 tokio = { version = "^1.39", features = ["macros"] }
+uuid = { version = "1.10.0", features = ["v7"] }
