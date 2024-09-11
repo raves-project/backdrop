@@ -8,6 +8,14 @@ This is the backend of Raves. It manages your media, helping you sort, search, o
 
 Internally, `backdrop` is based on a database of collected/created metadata cached for each piece of media.
 
+## Building
+
+To build this, there are a few dependencies you need to install. I use Fedora, but please feel free to submit PRs to add package lists for other distributions.
+
+### Fedora
+
+`sudo dnf install -y nasm libgexiv2-devel libdav1d libdav1d-devel`
+
 ## Status
 
 Under active development.
@@ -41,8 +49,12 @@ Under active development.
             - How does this affect search/navigation?
 */
 
+pub mod config;
 pub mod database;
-pub mod types;
+pub mod error;
+pub mod models;
+pub mod search;
+pub mod watch;
 
 pub fn add(left: u64, right: u64) -> u64 {
     left + right
