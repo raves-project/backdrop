@@ -56,12 +56,12 @@ pub struct PreExecutionQuery {
     pub parameters: Vec<Value>,
 }
 
-/// A modifier must become a query to be used.
-///
-/// All modifiers must implement this trait!
-pub trait ToQuery {
-    /// Converts the modifier into a query for use in querying the database.
-    ///
-    /// This assumes that each modifier can become a query string.
-    fn to_query(&self) -> Result<Query, surrealdb::error::Db>;
-}
+// /// A modifier must become a query to be used.
+// ///
+// /// All modifiers must implement this trait!
+// pub trait ToQuery {
+//     /// Converts the modifier into a query for use in querying the database.
+//     ///
+//     /// This assumes that each modifier can become a query string.
+//     fn to_query(&self) -> Result<Query, surrealdb::error::Db>;
+// }

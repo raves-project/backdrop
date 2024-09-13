@@ -1,9 +1,8 @@
 //! Represents tags in all their glory.
 
 use surrealdb::sql::Thing;
-use uuid::Uuid;
 
-pub type TagIdent = Uuid;
+pub type TagIdent = String;
 
 /// A "section" for tags. When a tag has a section, it is separated from others
 /// by extreme differences.

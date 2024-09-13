@@ -5,29 +5,35 @@ edition = "2021"
 
 [dependencies]
 fraction = { version = "0.15.3", features = ["with-serde-support"] }
-infer = "0.16.0"
-# jiff = { version = "0.1.13", features = ["serde"] }
 pisserror = "0.2"
-rexiv2 = "0.10.0"
 serde = { version = "1.0.210", features = ["derive"] }
-tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
-uuid = { version = "1.10.0", features = ["v7"] }
-ffmpeg-next = { version = "7.0", features = ["build", "static"] }
 toml = "0.8.19"
 async-watcher = "0.3.0"
 tracing = "0.1.40"
 async-walkdir = "2.0.0"
-futures-lite = "2.3.0"
+rand = "0.8.5"
+flutter_rust_bridge = "2.3.0"                                        # note: this is to specify acceptable inputs for flutter ffi
+
+# kinda unused rn
 jiff = { version = "0.1.13", features = ["serde"] }
+
+# async
+tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }
 tokio-stream = "0.1.16"
 futures = { version = "0.3.30", default-features = false, features = [
     "alloc",
     "std",
     "async-await",
 ] }
-rand = "0.8.5"
+
+# related to image proc
+rexiv2 = "0.10.0"
 image = { version = "0.25.2", features = ["avif-native"] }
+infer = "0.16.0"
 # crc32fast = "1.4.2"
+
+# sys dependencies
+ffmpeg-next = { version = "7.0", features = ["static"] }
 
 [dependencies.surrealdb]
 package = "surrealdb-nightly"
