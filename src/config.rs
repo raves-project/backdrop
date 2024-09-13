@@ -120,8 +120,18 @@ impl Config {
 pub struct BugReportInfo {
     pub app_name: String,
     pub app_version: String,
+
+    pub target_triple: String,
+    pub build_time: String,
+
+    /// the device string (e.g. `Google Pixel 6 Pro (raven)`)
     pub device: String,
+    /// that big string you get from an Android's `Build.DISPLAY` field
+    pub display: String,
+
     pub commit: String,
     pub repo: String,
-    pub build_time: String,
 }
+
+// TODO: add things like available tabs, etc.
+pub struct AppAppearance {}

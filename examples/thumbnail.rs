@@ -22,6 +22,8 @@ async fn main() {
             app_name: "backdrop_media_example".to_string(),
             app_version: "0.1.0".to_string(),
             device: "desktop".to_string(),
+            display: "lineage_and_some_other_stuff".to_string(),
+            target_triple: "x86_64-farts-gnu".to_string(),
             commit: "unknown".to_string(),
             repo: "https://github.com/onkoe/backdrop".to_string(),
             build_time: "unknown".to_string(),
