@@ -1,3 +1,4 @@
+use async_watcher::error;
 use core::error::Error;
 use pisserror::Error;
 
@@ -26,6 +27,25 @@ pub enum RavesError {
 
     #[error("The media file at `{path}` is not a supported media file.")]
     FileNotSupportedMedia { path: String },
+
+    // metadata
+    #[error("The media file at `{_0}` was missing required metadata: {_1}")]
+    FileMissingMetadata(String, String),
+
+    #[error("(KAMADAK) An error occured when parsing metadata for file at `{_0}`. See: `{_1}`.")]
+    KamadakExifError(String, kamadak_exif::Error),
+
+    #[error("(NOM) An error occured when parsing metadata for file at `{_0}`. See: `{_1}`.")]
+    NomExifError(String, nom_exif::Error),
+
+    #[error("An error occured when reading the image at `{_0}`. See: `{_1}`.")]
+    ImageError(String, image::ImageError),
+
+    #[error("An error occured when reading the MP4 video at `{_0}`. See: `{_1}`.")]
+    Mp4parseError(String, mp4parse::Error),
+
+    #[error("An error occured when parsing the Matroska video at `{_0}`. See: `{_1}`.")]
+    MatroskaError(String, matroska::Error),
 
     #[error("Failed to get file metadata for the media file at `{path}`. Err: `{err}`.")]
     FileMetadataFailure { path: String, err: std::io::Error },

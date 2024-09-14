@@ -1,4 +1,4 @@
-use surrealdb::sql::{Query, Value};
+use surrealdb::sql::Value;
 
 use super::details::{DateDetail, FormatDetail, KindDetail, TagDetail};
 

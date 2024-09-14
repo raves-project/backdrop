@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use surrealdb::RecordId;
-use tokio::task::block_in_place;
 
 use crate::{
     database::RavesDb,
@@ -43,7 +42,7 @@ impl Media {
     }
 
     /// Returns the thumbnail from the database for this media file.
-    pub async fn get_thumbnail(&self, id: &RecordId) -> Result<Thumbnail, RavesError> {
+    pub async fn get_thumbnail(&self, _id: &RecordId) -> Result<Thumbnail, RavesError> {
         // see if we have a thumbnail in the database
         if let Some(thumbnail) = self.database_get_thumbnail().await? {
             return Ok(thumbnail);
@@ -51,11 +50,12 @@ impl Media {
 
         // we havn't cached one yet...
         // first, let's see if the media file contains one for us to use
-        if let Some(raw_thumbnail) = self.gexif2_get_thumbnail().await? {
-            // let's save the file first
-            let rep = Thumbnail::new(id).await;
-            rep.save_from_buffer(&raw_thumbnail, self).await?;
-        }
+        // TODO: put this back if we use exiv2 again or something
+        // if let Some(raw_thumbnail) = self.gexif2_get_thumbnail().await? {
+        //     // let's save the file first
+        //     let rep = Thumbnail::new(id).await;
+        //     rep.save_from_buffer(&raw_thumbnail, self).await?;
+        // }
 
         // the file doesn't have one either! let's make one ;D
         let thumbnail = Thumbnail::new(&self.id().await?).await;
@@ -115,19 +115,19 @@ impl Media {
         Ok(maybe)
     }
 
-    /// Tries to get a thumbnail from the media file's EXIF data.
-    ///
-    /// Note that this is often uncommon for fully-digital media, like screenshots.
-    async fn gexif2_get_thumbnail(&self) -> Result<Option<Vec<u8>>, RavesError> {
-        // check the file's properties
-        let m = block_in_place(|| {
-            rexiv2::Metadata::new_from_path(self.path()).map_err(|_e| {
-                RavesError::MediaDoesntExist {
-                    path: self.path_str(),
-                }
-            })
-        })?;
+    // /// Tries to get a thumbnail from the media file's EXIF data.
+    // ///
+    // /// Note that this is often uncommon for fully-digital media, like screenshots.
+    // async fn gexif2_get_thumbnail(&self) -> Result<Option<Vec<u8>>, RavesError> {
+    //     // check the file's properties
+    //     let m = block_in_place(|| {
+    //         rexiv2::Metadata::new_from_path(self.path()).map_err(|_e| {
+    //             RavesError::MediaDoesntExist {
+    //                 path: self.path_str(),
+    //             }
+    //         })
+    //     })?;
 
-        Ok(m.get_thumbnail().map(|bstr| bstr.to_vec()))
-    }
+    //     Ok(m.get_thumbnail().map(|bstr| bstr.to_vec()))
+    // }
 }

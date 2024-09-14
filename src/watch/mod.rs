@@ -16,7 +16,7 @@ use crate::{config::Config, models::media::Media};
 pub struct Watch;
 
 impl Watch {
-    #[tracing::instrument]
+    #[tracing::instrument(skip_all)]
     pub async fn watch(conf: RwLock<Config>) {
         tracing::info!("starting watcher...");
         let (mut debouncer, mut file_events) =

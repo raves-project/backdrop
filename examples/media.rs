@@ -16,6 +16,7 @@ const MEDIA_FILE_PATH: &str = "/home/barrett/Pictures/CalyxOS Backup Main/DCIM/S
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::fmt()
+        .pretty()
         .with_max_level(Level::DEBUG)
         .init();
 

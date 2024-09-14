@@ -26,6 +26,16 @@ pub enum MediaKind {
     Video,
 }
 
+impl std::fmt::Display for MediaKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MediaKind::Photo => write!(f, "Photo"),
+            MediaKind::AnimatedPhoto => write!(f, "AnimatedPhoto"),
+            MediaKind::Video => write!(f, "Video"),
+        }
+    }
+}
+
 /// A representation of a media file's MIME format.
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, serde::Serialize, serde::Deserialize)]
 pub struct Format {
@@ -40,8 +50,11 @@ impl Format {
     ///
     /// If the MIME type uses an unsupported media [`MediaKind`], this will
     /// return `None`.
+    #[tracing::instrument(skip_all)]
     pub fn new_from_mime<S: AsRef<str>>(mime: S) -> Option<Self> {
         let mime = mime.as_ref();
+        tracing::debug!("creating format from mime type `{mime}`...");
+
         let mut s = mime.split('/');
         let (raw_kind, raw_type) = (s.next()?, s.next()?);
 
@@ -52,6 +65,8 @@ impl Format {
             "video" => MediaKind::Video,
             _ => return None,
         };
+
+        tracing::debug!("got media kind `{kind}` from mime type `{mime}`!");
 
         Some(Self {
             media_kind: kind,
@@ -87,6 +102,12 @@ pub type Framerate = fraction::Fraction;
 /// May internally expect IEC units like kibibytes (1024 bytes).
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, serde::Serialize, serde::Deserialize)]
 pub struct Filesize(pub u64);
+
+impl From<u64> for Filesize {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
 
 /// Representation of a video's bitrate in kibibytes per second.
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, serde::Serialize, serde::Deserialize)]

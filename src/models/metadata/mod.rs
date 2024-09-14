@@ -1,3 +1,4 @@
+pub mod builder;
 pub mod types;
 
 use std::{collections::HashMap, path::PathBuf, time::SystemTime};
@@ -10,18 +11,21 @@ use types::{Filesize, Format, Framerate, Resolution};
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct Metadata {
     pub path: PathBuf,
-    pub resolution: Resolution,
     pub filesize: Filesize,
-    /// The MIME type for the media file.
-    pub format: Format,
     pub creation_date: Option<SystemTime>,
     pub modified_date: Option<SystemTime>,
-    /// When Raves first saw this file.
-    pub first_seen_date: SystemTime,
+
+    /// The MIME type for the media file.
+    pub format: Format,
+
+    pub resolution: Resolution,
     /// Any kind-specific metadata (e.g. video framerate, etc.)
     pub specific: SpecificMetadata,
     /// Metadata that isn't immensely common, but can be read as a string.
     pub other: Option<OtherMetadataMap>,
+
+    /// When Raves first saw this file.
+    pub first_seen_date: SystemTime,
 }
 
 /// Metadata "specific" to one type of media.
@@ -50,14 +54,22 @@ pub struct OtherMetadataValue {
 ///
 /// Also, it's a `HashMap` newtype to get around the lack of `PartialOrd`.
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct OtherMetadataMap {
-    pub internal_hashmap: HashMap<String, OtherMetadataValue>,
+pub struct OtherMetadataMap(pub HashMap<String, OtherMetadataValue>);
+
+impl OtherMetadataMap {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+}
+
+impl Default for OtherMetadataMap {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl PartialOrd for OtherMetadataMap {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.internal_hashmap
-            .len()
-            .partial_cmp(&other.internal_hashmap.len())
+        self.0.len().partial_cmp(&other.0.len())
     }
 }
