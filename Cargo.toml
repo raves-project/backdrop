@@ -28,7 +28,9 @@ futures = { version = "0.3.30", default-features = false, features = [
 
 # related to image/video proc
 kamadak_exif = { version = "0.5.5", package = "kamadak-exif" } # for photos. supports a many types.
-nom-exif = { version = "1.5.2", features = ["async"] }         # videos: mov, mp4
+nom-exif = { git = "https://github.com/onkoe/nom-exif", branch = "main", features = [
+    "async",
+] } # videos: mov, mp4
 # FIXME: we need additional exif formats and the entirety of xmp
 # image = { version = "0.25.2", features = ["avif-native"] }
 image = "0.25.2"

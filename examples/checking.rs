@@ -38,7 +38,7 @@ async fn main() -> surrealdb::Result<()> {
     db.use_ns("test").use_db("test").await?;
 
     // Create a new person with a random id
-    let created: Vec<Record> = db
+    let created: Option<Record> = db
         .create("person")
         .content(Person {
             title: "Founder & CEO",
