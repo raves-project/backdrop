@@ -46,7 +46,8 @@ matroska = "0.27.0"
 
 
 [dependencies.ffmpeg-next]
-path = "../contributions/rust-ffmpeg"
+git = "https://github.com/onkoe/rust-ffmpeg"
+branch = "main"
 # features = ["build", "static"]
 features = ["build"]
 
