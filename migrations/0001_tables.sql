@@ -1,8 +1,6 @@
 -- uncomment to delete old data
-DROP TABLE info;
-
-DROP TABLE thumbnail;
-
+-- DROP TABLE info;
+-- DROP TABLE thumbnail;
 --
 CREATE TABLE info(
     id TEXT NOT NULL PRIMARY KEY,
