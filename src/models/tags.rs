@@ -1,6 +1,6 @@
 //! Represents tags in all their glory.
 
-use surrealdb::sql::Thing;
+use uuid::Uuid;
 
 pub type TagIdent = String;
 
@@ -47,11 +47,11 @@ pub struct Tag {
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Deserialize)]
 pub struct TagRecord {
     pub tag: Tag,
-    pub id: Thing,
+    pub id: Uuid,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Deserialize)]
 pub struct TagSectionRecord {
     pub section: TagSection,
-    pub id: Thing,
+    pub id: Uuid,
 }

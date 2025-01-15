@@ -2,10 +2,10 @@
 
 use backdrop::{
     config::{BugReportInfo, Config},
-    database::RavesDb,
+    database::DATABASE,
     models::media::Media,
 };
-use surrealdb::RecordId;
+use camino::Utf8PathBuf;
 use tracing::Level;
 
 #[tokio::main]
@@ -16,8 +16,8 @@ async fn main() {
 
     Config::init_config(
         &[],
-        dirs::data_dir().unwrap(),
-        dirs::cache_dir().unwrap(),
+        Utf8PathBuf::try_from(dirs::data_dir().unwrap()).unwrap(),
+        Utf8PathBuf::try_from(dirs::cache_dir().unwrap()).unwrap(),
         BugReportInfo {
             app_name: "backdrop_media_example".to_string(),
             app_version: "0.1.0".to_string(),
@@ -31,17 +31,14 @@ async fn main() {
     )
     .await;
 
-    let db = RavesDb::connect().await.unwrap();
-    let mut one = db.media_info.query("SELECT * FROM info").await.unwrap();
-
-    let m: Vec<Media> = one.take("media").unwrap();
-    let id: Vec<RecordId> = one.take("id").unwrap();
-
-    let media = m.first().unwrap();
-    let id = id.first().unwrap();
+    let mut conn = DATABASE.acquire().await.expect("db connection");
+    let media = sqlx::query_as::<_, Media>("SELECT * FROM info LIMIT 1")
+        .fetch_one(&mut *conn)
+        .await
+        .unwrap();
 
     // create a thumbnail for it
-    let thumbnail = media.get_thumbnail(id).await.unwrap();
+    let thumbnail = media.get_thumbnail(&media.id).await.unwrap();
     thumbnail.create().await.unwrap();
 
     println!("result should be at path: {:#?}", thumbnail.path_str());

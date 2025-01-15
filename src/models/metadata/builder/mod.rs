@@ -11,20 +11,24 @@ pub mod matroska;
 pub mod mp4parse;
 pub mod nom;
 
-use std::{
-    os::unix::fs::MetadataExt,
-    path::{Path, PathBuf},
-    time::SystemTime,
-};
+use std::os::unix::fs::MetadataExt;
 
+use camino::Utf8Path;
+use chrono::{DateTime, Utc};
 use infer::{video::*, Type};
+use sqlx::types::Json;
 use tokio::io::AsyncReadExt;
+use uuid::Uuid;
 
 use crate::{
     error::RavesError,
-    models::metadata::{
-        types::{Filesize, Format, MediaKind, Resolution},
-        Metadata, OtherMetadataMap, SpecificMetadata,
+    models::{
+        media::Media,
+        metadata::{
+            types::{Format, MediaKind},
+            OtherMetadataMap, SpecificMetadata,
+        },
+        tags::Tag,
     },
 };
 
@@ -32,31 +36,62 @@ use crate::{
 /// field represents that which isn't standard in a dictionary (string, string)
 /// form.
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
-pub struct MetadataBuilder {
-    // # file
-    pub path: Option<PathBuf>,
-    pub filesize: Option<Filesize>,
-    pub creation_date: Option<Option<SystemTime>>,
-    pub modified_date: Option<Option<SystemTime>>,
+pub struct MediaBuilder {
+    /// Unique ID identifying which piece of media is represented.
+    ///
+    /// This should match with the thumbnail database.
+    pub id: Uuid,
 
-    // # format
-    pub format: Option<Format>,
+    /// The last known file path for this media file.
+    pub path: Option<String>,
 
-    // # exif
-    pub resolution: Option<Resolution>,
-    pub specific: Option<SpecificMetadata>,
-    pub other: Option<Option<OtherMetadataMap>>,
+    /// How large the file is, in bytes.
+    pub filesize: Option<i64>,
 
-    // # raves-specific
-    pub first_seen_date: SystemTime,
+    /// The MIME type (format) of the file.
+    pub format: Option<Json<Format>>,
+
+    /// The time the file was created, according to the file system.
+    ///
+    /// This could be inaccurate or missing depending on the file's source.
+    pub creation_date: Option<DateTime<Utc>>,
+
+    /// The time the file was last modified, according to the file system.
+    ///
+    /// Might be inaccurate or missing.
+    pub modification_date: Option<DateTime<Utc>>,
+
+    /// The time the file was first noted by Raves.
+    pub first_seen_date: DateTime<Utc>,
+
+    /// The media's width (horizontal) in pixels.
+    pub width_px: Option<u32>,
+
+    /// The media's height (vertical) in pixels.
+    pub height_px: Option<u32>,
+
+    /// Additional metadata that's specific to the media's kind, such as a
+    /// video's framerate.
+    pub specific_metadata: Option<Json<SpecificMetadata>>,
+
+    /// Metadata that isn't immensely common, but can be read as a string.
+    ///
+    /// Or, in other words, it's a hashmap of data.
+    ///
+    /// This is stored as `Json` for the database.
+    pub other_metadata: Option<Json<OtherMetadataMap>>,
+
+    /// The tags of a media file. Note that these can come from the file's EXIF
+    /// metadata or Rave's internals.
+    pub tags: Json<Vec<Tag>>,
 }
 
-impl MetadataBuilder {
+impl MediaBuilder {
     /// Returns metadata found from a file.
     #[tracing::instrument]
-    pub async fn apply<P>(mut self, path: P) -> Result<Metadata, RavesError>
+    pub async fn apply<P>(mut self, path: P) -> Result<Media, RavesError>
     where
-        P: AsRef<Path> + std::fmt::Debug,
+        P: AsRef<Utf8Path> + std::fmt::Debug,
     {
         let path = path.as_ref();
 
@@ -67,7 +102,7 @@ impl MetadataBuilder {
         // apply format
         tracing::debug!("applying format...");
         let media_kind = format.media_kind();
-        self.format = Some(format.clone());
+        self.format = Some(Json(format.clone()));
 
         tracing::debug!("applying metadata...");
         match media_kind {
@@ -98,13 +133,13 @@ impl MetadataBuilder {
                 tokio::fs::File::open(path)
                     .await
                     .map_err(|e| RavesError::FileMetadataFailure {
-                        path: path.display().to_string(),
+                        path: path.to_string(),
                         err: e,
                     })?
                     .read_exact(&mut buf)
                     .await
                     .map_err(|e| RavesError::FileMetadataFailure {
-                        path: path.display().to_string(),
+                        path: path.to_string(),
                         err: e,
                     })?;
 
@@ -131,11 +166,11 @@ impl MetadataBuilder {
 }
 
 // private methods
-impl MetadataBuilder {
+impl MediaBuilder {
     /// Adds typical file attributes to `self`.
     #[tracing::instrument(skip(self))]
-    async fn file(&mut self, path: &Path) -> Result<(), RavesError> {
-        let path_str = path.display().to_string();
+    async fn file(&mut self, path: &Utf8Path) -> Result<(), RavesError> {
+        let path_str = path.to_string();
 
         // err if the file doesn't open
         let metadata = tokio::fs::metadata(path)
@@ -143,10 +178,10 @@ impl MetadataBuilder {
             .map_err(|_e| RavesError::MediaDoesntExist { path: path_str })?;
         tracing::debug!("got file metadata!");
 
-        self.path = Some(path.to_path_buf());
-        self.filesize = Some(Filesize(metadata.size()));
-        self.creation_date = Some(metadata.created().ok());
-        self.modified_date = Some(metadata.modified().ok());
+        self.path = Some(path.to_string());
+        self.filesize = Some(metadata.size() as i64);
+        self.creation_date = metadata.created().ok().map(|st| st.into());
+        self.modification_date = metadata.modified().ok().map(|st| st.into());
         tracing::debug!("added file metadata to builder!");
 
         Ok(())
@@ -154,8 +189,8 @@ impl MetadataBuilder {
 
     /// Grabs the format of the media file at `path`.
     #[tracing::instrument]
-    async fn format(path: &Path) -> Result<(Format, Type), RavesError> {
-        let path_str = path.display().to_string();
+    async fn format(path: &Utf8Path) -> Result<(Format, Type), RavesError> {
+        let path_str = path.to_string();
 
         tracing::debug!("grabbing format...");
         let mime = infer::get_from_path(path)
@@ -182,14 +217,16 @@ impl MetadataBuilder {
     ///
     /// This will return a None if no file metadata could be gathered.
     #[tracing::instrument(skip(self))]
-    async fn build(self) -> Result<Metadata, RavesError> {
+    async fn build(self) -> Result<Media, RavesError> {
         let path_str = self
             .path
-            .as_ref()
-            .map(|p| p.display().to_string())
+            .clone()
+            .map(|p| p.to_string())
             .unwrap_or("no path given".into());
 
-        Ok(Metadata {
+        Ok(Media {
+            id: self.id,
+
             path: self.path.ok_or(RavesError::FileMissingMetadata(
                 path_str.clone(),
                 "no path given".into(),
@@ -198,49 +235,59 @@ impl MetadataBuilder {
                 path_str.clone(),
                 "no file size given".into(),
             ))?,
-            creation_date: self.creation_date.flatten(),
-            modified_date: self.modified_date.flatten(),
+            creation_date: self.creation_date,
+            modification_date: self.modification_date,
 
             format: self.format.ok_or(RavesError::FileMissingMetadata(
                 path_str.clone(),
                 "no format given".into(),
             ))?,
-            resolution: self.resolution.ok_or(RavesError::FileMissingMetadata(
+            width_px: self.width_px.ok_or(RavesError::FileMissingMetadata(
                 path_str.clone(),
-                "no resolution given".into(),
+                "no width (res) given".into(),
             ))?,
-
-            specific: self.specific.ok_or(RavesError::FileMissingMetadata(
+            height_px: self.height_px.ok_or(RavesError::FileMissingMetadata(
                 path_str.clone(),
-                "no specific metadata given".into(),
+                "no width (res) given".into(),
             ))?,
-            other: self.other.flatten(),
+            specific_metadata: self
+                .specific_metadata
+                .ok_or(RavesError::FileMissingMetadata(
+                    path_str.clone(),
+                    "no specific metadata (file kind variant)".into(),
+                ))?,
+            other_metadata: self.other_metadata,
 
             // FIXME: HEYYYYY! THIS IS WRONG: MUST CHECK DATABASE!!!
             first_seen_date: self.first_seen_date,
+
+            tags: self.tags,
         })
     }
 }
 
-impl Default for MetadataBuilder {
+impl Default for MediaBuilder {
     fn default() -> Self {
         Self {
+            id: Uuid::new_v4(),
             path: None,
-            resolution: None,
             filesize: None,
             format: None,
             creation_date: None,
-            modified_date: None,
-            first_seen_date: SystemTime::now(),
-            specific: None,
-            other: None,
+            modification_date: None,
+            first_seen_date: Utc::now(),
+            width_px: None,
+            height_px: None,
+            specific_metadata: None,
+            other_metadata: None,
+            tags: Json(vec![]),
         }
     }
 }
 
 /// Grabs the video length of a media file using FFmpeg.
-pub fn get_video_len(path: &Path) -> Result<SpecificMetadata, RavesError> {
-    let path_str = path.display().to_string();
+pub fn get_video_len(path: &Utf8Path) -> Result<SpecificMetadata, RavesError> {
+    let path_str = path.to_string();
 
     // let's ask ffmpeg what it thinks
     tracing::trace!("video detected. asking ffmpeg to handle...");

@@ -1,40 +1,82 @@
-use std::path::{Path, PathBuf};
-
-use surrealdb::RecordId;
+use camino::{Utf8Path, Utf8PathBuf};
+use chrono::{DateTime, Utc};
+use sqlx::types::{Json, Uuid};
 
 use crate::{
-    database::RavesDb,
+    database::DATABASE,
     error::{DatabaseError, RavesError},
-    models::metadata::Metadata,
 };
 
-use super::{metadata::SpecificMetadata, tags::Tag, thumbnail::Thumbnail};
+use super::{
+    metadata::{types::Format, OtherMetadataMap, SpecificMetadata},
+    tags::Tag,
+    thumbnail::Thumbnail,
+};
 
 pub mod load;
 
 /// Some media file.
-#[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, sqlx::FromRow,
+)]
 pub struct Media {
-    pub metadata: Metadata,
-    //
-    // The identifer of the media. Used for loading cached metadata,
-    // thumbnails, and potentially other information.
-    // pub id: RecordId,
-    //
+    /// Unique ID identifying which piece of media is represented.
+    ///
+    /// This should match with the thumbnail database.
+    pub id: Uuid,
+
+    /// The last known file path for this media file.
+    pub path: String,
+
+    /// How large the file is, in bytes.
+    pub filesize: i64,
+
+    /// The MIME type (format) of the file.
+    pub format: Json<Format>,
+
+    /// The time the file was created, according to the file system.
+    ///
+    /// This could be inaccurate or missing depending on the file's source.
+    pub creation_date: Option<DateTime<Utc>>,
+
+    /// The time the file was last modified, according to the file system.
+    ///
+    /// Might be inaccurate or missing.
+    pub modification_date: Option<DateTime<Utc>>,
+
+    /// The time the file was first noted by Raves.
+    pub first_seen_date: DateTime<Utc>,
+
+    /// The media's width (horizontal) in pixels.
+    pub width_px: u32,
+
+    /// The media's height (vertical) in pixels.
+    pub height_px: u32,
+
+    /// Additional metadata that's specific to the media's kind, such as a
+    /// video's framerate.
+    pub specific_metadata: Json<SpecificMetadata>,
+
+    /// Metadata that isn't immensely common, but can be read as a string.
+    ///
+    /// Or, in other words, it's a hashmap of data.
+    ///
+    /// This is stored as `Json` for the database.
+    pub other_metadata: Option<Json<OtherMetadataMap>>,
+
     /// The tags of a media file. Note that these can come from the file's EXIF
     /// metadata or Rave's internals.
-    pub tags: Vec<Tag>,
-}
-
-#[derive(Clone, Debug, serde::Deserialize)]
-pub struct MediaRecord {
-    pub id: RecordId,
-    pub media: Media,
+    pub tags: Json<Vec<Tag>>,
 }
 
 impl Media {
+    /// Grabs the path of this media file.
+    pub fn path(&self) -> Utf8PathBuf {
+        self.path.clone().into()
+    }
+
     /// Updates this file's metadata in the database.
-    pub async fn update_metadata(path: &Path) -> Result<(), RavesError> {
+    pub async fn update_metadata(path: &Utf8Path) -> Result<(), RavesError> {
         // TODO: optimize using CRC32 to check if we need to update?
         // might require another table..?
 
@@ -42,7 +84,7 @@ impl Media {
     }
 
     /// Returns the thumbnail from the database for this media file.
-    pub async fn get_thumbnail(&self, _id: &RecordId) -> Result<Thumbnail, RavesError> {
+    pub async fn get_thumbnail(&self, _id: &Uuid) -> Result<Thumbnail, RavesError> {
         // see if we have a thumbnail in the database
         if let Some(thumbnail) = self.database_get_thumbnail().await? {
             return Ok(thumbnail);
@@ -64,55 +106,61 @@ impl Media {
     }
 
     pub fn specific_type(&self) -> SpecificMetadata {
-        self.metadata.specific.clone()
+        self.specific_metadata.clone().0
     }
 }
 
 // the private impl
 impl Media {
-    /// Grabs the path of this media file.
-    pub(crate) fn path(&self) -> PathBuf {
-        self.metadata.path.clone()
-    }
-
     /// Creates a string from this media file's path.
     pub(crate) fn path_str(&self) -> String {
-        self.path().display().to_string()
+        self.path().to_string()
     }
 
     /// Grabs this media file's unique identifier.
-    async fn id(&self) -> Result<RecordId, DatabaseError> {
-        let db = RavesDb::connect().await?;
+    async fn id(&self) -> Result<Uuid, DatabaseError> {
+        let mut conn = DATABASE.acquire().await?;
 
-        let mut response = db
-            .media_info
-            .query("SELECT id FROM info WHERE path = $path")
-            .bind(("path", self.path()))
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
+        let record = sqlx::query_as::<_, Media>("SELECT id FROM info WHERE path = $1")
+            .bind(&self.path)
+            .fetch_one(&mut *conn)
+            .await?;
 
-        let maybe: Option<MediaRecord> = response.take(0).map_err(DatabaseError::QueryFailed)?;
+        Ok(record.id)
 
-        maybe
-            .ok_or(DatabaseError::EmptyResponse(self.path_str()))
-            .map(|mr| mr.id)
+        // let mut response = db
+        //     .query("SELECT id FROM info WHERE path = $path")
+        //     .bind(("path", self.path()))
+        //     .await
+        //     .map_err(DatabaseError::QueryFailed)?;
+
+        // maybe
+        //     .ok_or(DatabaseError::EmptyResponse(self.path_str()))
+        //     .map(|mr| mr.id)
     }
 
     /// Tries to grab the thumbnail from the database, if it's there.
     async fn database_get_thumbnail(&self) -> Result<Option<Thumbnail>, RavesError> {
-        let (db, id) = tokio::try_join!(RavesDb::connect(), self.id())?;
+        let mut conn = DATABASE.acquire().await?;
+        let id = self.id().await?;
+
+        let thumbnail =
+            sqlx::query_as::<_, Thumbnail>("SELECT * FROM thumbnail WHERE image_id = $1")
+                .bind(id)
+                .fetch_one(&mut *conn)
+                .await?;
 
         // grab thumbnail from database
-        let mut response = db
-            .thumbnails
-            .query("SELECT * FROM thumbnail WHERE image_id = $id")
-            .bind(("id", id))
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
+        // let mut response = db
+        //     .thumbnails
+        //     .query("SELECT * FROM thumbnail WHERE image_id = $id")
+        //     .bind(("id", id))
+        //     .await
+        //     .map_err(DatabaseError::QueryFailed)?;
 
-        let maybe: Option<Thumbnail> = response.take(0).map_err(DatabaseError::QueryFailed)?;
+        // let maybe: Option<Thumbnail> = response.take(0).map_err(DatabaseError::QueryFailed)?;
 
-        Ok(maybe)
+        Ok(Some(thumbnail))
     }
 
     // /// Tries to get a thumbnail from the media file's EXIF data.

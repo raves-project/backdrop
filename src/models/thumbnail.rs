@@ -3,6 +3,7 @@
 //! This includes generating thumbnails for media (and caching them), alongside
 //! grabbing thumbnails from media created by a camera or device.
 
+use camino::Utf8PathBuf;
 use ffmpeg_next::{
     codec::context::Context,
     filter::{self, Graph},
@@ -10,44 +11,46 @@ use ffmpeg_next::{
     frame,
 };
 use image::imageops::FilterType;
-use std::{io::BufWriter, path::PathBuf};
-use surrealdb::RecordId;
+use std::io::BufWriter;
+use uuid::Uuid;
 
 use ffmpeg_next::util::frame::video::Video;
 
 use crate::{
     config::Config,
-    database::RavesDb,
-    error::{DatabaseError, RavesError, ThumbnailError},
+    database::DATABASE,
+    error::{RavesError, ThumbnailError},
     models::{media::Media, metadata::SpecificMetadata},
 };
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, sqlx::FromRow,
+)]
 pub struct Thumbnail {
     /// a UNIQUE path to the thumbnail file.
-    path: PathBuf,
+    path: String,
 
     /// the id of the original media file in the database.
-    image_id: RecordId,
+    image_id: Uuid,
 }
 
 impl Thumbnail {
     const SIZE: u32 = 512;
 
     /// Creates a new thumbnail representation given an image ID.
-    pub async fn new(image_id: &RecordId) -> Self {
+    pub async fn new(image_id: &Uuid) -> Self {
         // note: the path to a thumbnail is static from its id.
         let path = Self::make_path(image_id).await;
         Self {
-            path,
-            image_id: image_id.clone(),
+            path: path.to_string(),
+            image_id: *image_id,
         }
     }
 
     /// Makes a real thumbnail file for this representation. It'll be saved to disk.
     pub async fn create(&self) -> Result<(), RavesError> {
         // avoid recreating thumbnails
-        if self.path.exists() {
+        if self.path().exists() {
             tracing::trace!("attempted to create thumbnail, but it already exists");
             return Ok(());
         }
@@ -167,17 +170,17 @@ impl Thumbnail {
     }
 
     /// Grabs the path to the thumbnail.
-    pub fn path(&self) -> &PathBuf {
-        &self.path
+    pub fn path(&self) -> Utf8PathBuf {
+        Utf8PathBuf::from(self.path.clone())
     }
 
     /// Represents this thumbnail's path as a string.
     pub fn path_str(&self) -> String {
-        self.path().display().to_string()
+        self.path().to_string()
     }
 
     /// Grabs the ID of the original media file.
-    pub fn image_id(&self) -> &RecordId {
+    pub fn image_id(&self) -> &Uuid {
         &self.image_id
     }
 
@@ -209,8 +212,8 @@ impl Thumbnail {
 
 impl Thumbnail {
     /// Makes a unique thumbnail path from an image's unique ID.
-    async fn make_path(image_id: &RecordId) -> PathBuf {
-        let filename = PathBuf::from(format!("{}.thumbnail", image_id.key()));
+    async fn make_path(image_id: &Uuid) -> Utf8PathBuf {
+        let filename = Utf8PathBuf::from(format!("{image_id}.thumbnail"));
         Config::read()
             .await
             .cache_dir
@@ -221,13 +224,13 @@ impl Thumbnail {
 
     /// Returns the media file representation that this thumbnail is for.
     async fn get_media(&self) -> Result<Media, RavesError> {
-        let entry: Option<Media> = RavesDb::connect()
-            .await?
-            .media_info
-            .select(self.image_id.clone())
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
+        let mut conn = DATABASE.acquire().await?;
 
-        entry.ok_or(ThumbnailError::MediaNotFound(self.image_id().to_string()).into())
+        let media = sqlx::query_as::<_, Media>("SELECT * FROM info WHERE id = $1")
+            .bind(self.image_id)
+            .fetch_one(&mut *conn)
+            .await?;
+
+        Ok(media)
     }
 }

@@ -1,16 +1,20 @@
 //! Let's see if we can chain query method calls...
 
-use std::ffi::OsString;
-
 use backdrop::{
-    database::RavesDb,
-    models::{media::Media, metadata::types::Orientation},
+    database::DATABASE,
+    models::{
+        media::Media,
+        metadata::types::{Orientation, Resolution},
+    },
 };
 
 #[tokio::main]
 async fn main() {
-    let db = RavesDb::connect().await.unwrap();
-    let all: Vec<Media> = db.media_info.select("info").await.unwrap();
+    let mut conn = DATABASE.acquire().await.expect("db conn");
+    let all = sqlx::query_as::<_, Media>("SELECT * FROM info")
+        .fetch_all(&mut *conn)
+        .await
+        .unwrap();
 
     // SEARCH: all media where:
     // - orientation is portrait,
@@ -20,20 +24,18 @@ async fn main() {
         .iter()
         .filter(|m| {
             matches!(
-                Orientation::from(m.metadata.resolution.clone()),
+                Orientation::from(Resolution::new(m.width_px, m.height_px)),
                 Orientation::Portrait
             )
         })
         .filter(|m| {
-            m.metadata
-                .path
+            m.path()
                 .file_name()
-                .unwrap_or(OsString::new().as_os_str())
-                .to_string_lossy()
+                .unwrap_or_default()
                 .to_string()
                 .contains(('0'..='9').collect::<Vec<_>>().as_slice())
         })
-        .filter(|m| m.metadata.resolution.width > 1920 && m.metadata.resolution.height > 1080)
+        .filter(|m| m.width_px > 1920 && m.height_px > 1080)
         .collect::<Vec<_>>();
 
     println!("found results: {:#?}", executed_search);

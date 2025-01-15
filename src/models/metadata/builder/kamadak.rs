@@ -1,25 +1,25 @@
-use std::path::Path;
-
+use camino::Utf8Path;
 use kamadak_exif::{Exif as KamadakExif, In, Tag};
+use sqlx::types::Json;
 use tokio::try_join;
 
 use crate::{
     error::RavesError,
     models::metadata::{
         builder::get_video_len,
-        types::{Format, MediaKind, Resolution},
+        types::{Format, MediaKind},
         OtherMetadataMap, OtherMetadataValue, SpecificMetadata,
     },
 };
 
-use super::MetadataBuilder;
+use super::MediaBuilder;
 
-impl MetadataBuilder {
+impl MediaBuilder {
     /// Applies EXIF data from `kamadak_exif` to `self`.
     #[tracing::instrument(skip(self))]
     pub(super) async fn apply_kamadak_exif(
         &mut self,
-        path: &Path,
+        path: &Utf8Path,
         format: Format,
     ) -> Result<(), RavesError> {
         let (_, exif) = try_join! {
@@ -31,9 +31,7 @@ impl MetadataBuilder {
 
         let p = In::PRIMARY;
 
-        let err = |msg: &str| {
-            RavesError::FileMissingMetadata(path.display().to_string(), msg.to_string())
-        };
+        let err = |msg: &str| RavesError::FileMissingMetadata(path.to_string(), msg.to_string());
 
         tracing::debug!("looking for exif data...");
 
@@ -53,18 +51,16 @@ impl MetadataBuilder {
             return Err(err("no height"));
         };
 
-        self.resolution = Some(Resolution::new(
-            *w.first().ok_or(err("no width"))?,
-            *h.first().ok_or(err("no height"))?,
-        ));
+        self.width_px = Some(*w.first().ok_or(err("no width"))?);
+        self.height_px = Some(*h.first().ok_or(err("no width"))?);
         tracing::debug!("got resolution from exif!");
 
         // specific
-        self.specific = Some(match format.media_kind() {
+        self.specific_metadata = Some(Json(match format.media_kind() {
             MediaKind::Photo => SpecificMetadata::Image {},
             MediaKind::Video => get_video_len(path)?,
             MediaKind::AnimatedPhoto => unimplemented!(),
-        });
+        }));
         tracing::debug!("got specific metadata from exif!");
 
         // other
@@ -78,7 +74,7 @@ impl MetadataBuilder {
 
             mapped.0.insert(key, value);
         }
-        self.other = Some(Some(mapped));
+        self.other_metadata = Some(Json(mapped));
         tracing::debug!("got other metadata from exif!");
 
         tracing::debug!("finished looking for exif data!");
@@ -88,9 +84,9 @@ impl MetadataBuilder {
 }
 
 // to get rid of that god-forsaken `JoinError`
-async fn look(path: &Path) -> Result<KamadakExif, RavesError> {
+async fn look(path: &Utf8Path) -> Result<KamadakExif, RavesError> {
     let path = path.to_path_buf();
-    let path_str = path.display().to_string();
+    let path_str = path.to_string();
 
     tokio::task::spawn_blocking(|| -> Result<KamadakExif, RavesError> {
         let mut file = std::fs::File::open(path).map_err(|_e| RavesError::MediaDoesntExist {
