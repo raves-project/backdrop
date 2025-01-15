@@ -1,6 +1,5 @@
 /target
-raves_media_info.db/
-raves_thumbnails.db/
+**.db
 Cargo.lock
 _BACKUP_BEFORE_MERGING_MEDIA_AND_RECORD/
 build/
