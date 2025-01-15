@@ -8,7 +8,7 @@ pub const INFO_TABLE: &str = "info";
 pub const THUMBNAILS_TABLE: &str = "thumbnail";
 
 pub static DATABASE: LazyLock<Pool<Sqlite>> = LazyLock::new(|| {
-    const RAVES_DB_FILE_NAME: &str = "raves.db";
+    const RAVES_DB_FILE_NAME: &str = "raves.sqlite";
 
     let pool =
         sqlx::Pool::<Sqlite>::connect_lazy(constcat::concat!("sqlite://", RAVES_DB_FILE_NAME))
