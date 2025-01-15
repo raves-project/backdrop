@@ -1,5 +1,6 @@
 /target
 **.db
+**.sqlite
 Cargo.lock
 _BACKUP_BEFORE_MERGING_MEDIA_AND_RECORD/
 build/
