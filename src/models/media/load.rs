@@ -1,30 +1,22 @@
-use std::path::{Path, PathBuf};
+use camino::{Utf8Path, Utf8PathBuf};
 
-use crate::{
-    database::RavesDb,
-    error::{DatabaseError, RavesError},
-    models::metadata::builder::MetadataBuilder,
-};
+use crate::{database::DATABASE, error::RavesError, models::metadata::builder::MediaBuilder};
 
 use super::Media;
 
 impl Media {
     /// Gets a `Media` from disk or cache.
     #[tracing::instrument]
-    pub async fn new(path: PathBuf) -> Result<Self, RavesError> {
-        let db = RavesDb::connect().await?;
-        // query the db for image
-        let mut results = db
-            .media_info
-            .query("SELECT * FROM info WHERE path = $path")
-            .bind(("path", path.clone()))
-            .await
-            .map_err(DatabaseError::QueryFailed)?;
+    pub async fn new(path: Utf8PathBuf) -> Result<Self, RavesError> {
+        let mut conn = DATABASE.acquire().await?;
 
-        let r: Result<Option<Media>, surrealdb::Error> = results.take(0);
+        // query the db for media with given path
+        let media = sqlx::query_as::<_, Media>("SELECT *, id as `Uuid!` FROM info WHERE path = $1")
+            .bind(path.to_string())
+            .fetch_optional(&mut *conn)
+            .await?;
 
-        if let Ok(Some(media)) = r {
-            // return it here
+        if let Some(media) = media {
             Ok(media)
         } else {
             // otherwise, make the metadata ourselves
@@ -34,9 +26,9 @@ impl Media {
 
     /// Loads file (with metadata) from disk... no matter what.
     #[tracing::instrument]
-    pub async fn load_from_disk(path: &Path) -> Result<Self, RavesError> {
+    pub async fn load_from_disk(path: &Utf8Path) -> Result<Self, RavesError> {
         // make sure the file exists
-        let path_str = path.display().to_string();
+        let path_str = path.to_string();
         if !path.exists() {
             tracing::error!("the file doesn't exist");
             return Err(RavesError::MediaDoesntExist {
@@ -46,28 +38,33 @@ impl Media {
 
         // get metadata
         tracing::debug!("checking file properties...");
-        let metadata = MetadataBuilder::default().apply(path).await?;
+        let _metadata = MediaBuilder::default().apply(path).await?;
 
         // ok ok... we have everything else. let's save it now!
         tracing::debug!("saving media to database...");
-        let db = RavesDb::connect().await?;
-        let v: Vec<Media> = db
-            .media_info
-            .insert("info")
-            .content(Self {
-                metadata,
-                tags: Vec::new(), // TODO
-            })
-            .await
-            .map_err(|e| DatabaseError::InsertionFailed(e.to_string()))?;
 
-        let constructed = v
-            .first()
-            .ok_or(DatabaseError::InsertionFailed(
-                "didn't get anything from return vec! :p".into(),
-            ))?
-            .clone();
+        // let query = sqlx::query!("INSERT INTO info (id, path, filesize, format, creation_date, modification_date, first_seen_date, width_px, height_px, specific_metadata, other_metadata, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
+        // .bind(Uuid::new_v4()).bind;
 
-        Ok(constructed)
+        // let db = RavesDb::connect().await?;
+        // let v: Vec<Media> = db
+        //     .media_info
+        //     .insert("info")
+        //     .content(Self {
+        //         metadata,
+        //         tags: Vec::new(), // TODO
+        //     })
+        //     .await
+        //     .map_err(|e| DatabaseError::InsertionFailed(e.to_string()))?;
+
+        // let constructed = v
+        //     .first()
+        //     .ok_or(DatabaseError::InsertionFailed(
+        //         "didn't get anything from return vec! :p".into(),
+        //     ))?
+        //     .clone();
+
+        // Ok(constructed)
+        todo!()
     }
 }

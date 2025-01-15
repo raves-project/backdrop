@@ -1,5 +1,3 @@
-use surrealdb::sql::Value;
-
 use super::details::{DateDetail, FormatDetail, KindDetail, TagDetail};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -53,7 +51,7 @@ pub enum Expr {
 
 pub struct PreExecutionQuery {
     pub query: String,
-    pub parameters: Vec<Value>,
+    // pub parameters: Vec<Value>, // FIXME: no clue what i was cookin here. `surrealql::Value`..?
 }
 
 // /// A modifier must become a query to be used.

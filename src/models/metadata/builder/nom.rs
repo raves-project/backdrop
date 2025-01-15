@@ -1,6 +1,6 @@
-use std::path::Path;
-
+use camino::Utf8Path;
 use nom_exif::{parse_exif_async, Exif as NomExif, ExifIter, ExifTag};
+use sqlx::types::Json;
 use tokio::task::spawn_blocking;
 use tokio::try_join;
 
@@ -8,19 +8,19 @@ use crate::{
     error::RavesError,
     models::metadata::{
         builder::get_video_len,
-        types::{Format, MediaKind, Resolution},
+        types::{Format, MediaKind},
         OtherMetadataMap, OtherMetadataValue, SpecificMetadata,
     },
 };
 
-use super::MetadataBuilder;
+use super::MediaBuilder;
 
-impl MetadataBuilder {
+impl MediaBuilder {
     /// Applies EXIF data from `nom_exif` to `self`.
     #[tracing::instrument(skip(self))]
     pub(super) async fn apply_nom_exif(
         &mut self,
-        path: &Path,
+        path: &Utf8Path,
         format: Format,
     ) -> Result<(), RavesError> {
         tracing::debug!("grabbing exif data...");
@@ -37,35 +37,36 @@ impl MetadataBuilder {
         let w = exif
             .get(ExifTag::ImageWidth)
             .ok_or(RavesError::FileMissingMetadata(
-                path.display().to_string(),
+                path.to_string(),
                 "no width".into(),
             ))?
             .as_u32()
             .ok_or(RavesError::FileMissingMetadata(
-                path.display().to_string(),
+                path.to_string(),
                 "no width".into(),
             ))?;
         let h = exif
             .get(ExifTag::ImageHeight)
             .ok_or(RavesError::FileMissingMetadata(
-                path.display().to_string(),
+                path.to_string(),
                 "no height".into(),
             ))?
             .as_u32()
             .ok_or(RavesError::FileMissingMetadata(
-                path.display().to_string(),
+                path.to_string(),
                 "no width".into(),
             ))?;
 
-        self.resolution = Some(Resolution::new(w, h));
+        self.width_px = Some(w);
+        self.height_px = Some(h);
         tracing::debug!("got resolution from exif!");
 
         // specific
-        self.specific = Some(match media_kind {
+        self.specific_metadata = Some(Json(match media_kind {
             MediaKind::Photo => SpecificMetadata::Image {},
             MediaKind::Video => get_video_len(path)?,
             MediaKind::AnimatedPhoto => unimplemented!(),
-        });
+        }));
         tracing::debug!("got specific metadata from exif!");
 
         // other
@@ -84,7 +85,7 @@ impl MetadataBuilder {
 
             mapped.0.insert(key, value);
         }
-        self.other = Some(Some(mapped));
+        self.other_metadata = Some(Json(mapped));
         tracing::debug!("got other metadata from exif!");
 
         tracing::debug!("finished looking for exif data!");
@@ -93,8 +94,8 @@ impl MetadataBuilder {
     }
 }
 
-async fn fut(path: &Path) -> Result<(ExifIter, NomExif), RavesError> {
-    let path_str = path.display().to_string();
+async fn fut(path: &Utf8Path) -> Result<(ExifIter, NomExif), RavesError> {
+    let path_str = path.to_string();
 
     let file = tokio::fs::File::open(&path)
         .await

@@ -55,20 +55,16 @@ impl FinishedQuery {
 
         match ty {
             SortType::Random => v.shuffle(&mut thread_rng()),
-            SortType::DateFirstSeen => {
-                v.sort_by(|a, b| a.metadata.first_seen_date.cmp(&b.metadata.first_seen_date))
-            }
+            SortType::DateFirstSeen => v.sort_by(|a, b| a.first_seen_date.cmp(&b.first_seen_date)),
             SortType::DateModified => {
-                v.sort_by(|a, b| a.metadata.modified_date.cmp(&b.metadata.modified_date))
+                v.sort_by(|a, b| a.modification_date.cmp(&b.modification_date))
             }
-            SortType::DateCreated => {
-                v.sort_by(|a, b| a.metadata.creation_date.cmp(&b.metadata.creation_date))
-            }
+            SortType::DateCreated => v.sort_by(|a, b| a.creation_date.cmp(&b.creation_date)),
             SortType::TagCount => v.sort_by(|a, b| a.tags.len().cmp(&b.tags.len())),
-            SortType::Type => v.sort_by(|a, b| a.metadata.format.cmp(&b.metadata.format)),
-            SortType::Size => v.sort_by(|a, b| a.metadata.filesize.cmp(&b.metadata.filesize)),
+            SortType::Type => v.sort_by(|a, b| a.format.cmp(&b.format)),
+            SortType::Size => v.sort_by(|a, b| a.filesize.cmp(&b.filesize)),
             SortType::Resolution => {
-                v.sort_by(|a, b| a.metadata.resolution.cmp(&b.metadata.resolution))
+                v.sort_by(|a, b| (a.width_px + a.height_px).cmp(&(b.width_px + b.height_px)))
             }
 
             // this one is different b/c it relies on a sort specific to videos.
@@ -85,7 +81,7 @@ impl FinishedQuery {
 
                 // split the vec into photos and videos
                 for media in vec.into_iter() {
-                    match media.metadata.specific {
+                    match media.specific_metadata.0 {
                         SpecificMetadata::Image {} => photos.push(media),
                         SpecificMetadata::Video { length } => videos.push((media, length)),
                         _ => unreachable!("animated images aren't yet distinct from photos"),
@@ -96,7 +92,7 @@ impl FinishedQuery {
                 videos.sort_by(|(_, a_len), (_, b_len)| a_len.total_cmp(b_len));
 
                 // always sort photos by the creation date (this sucks but whatever)
-                photos.sort_by(|a, b| a.metadata.creation_date.cmp(&b.metadata.creation_date));
+                photos.sort_by(|a, b| a.creation_date.cmp(&b.creation_date));
 
                 #[cfg(debug_assertions)]
                 assert!(v.is_empty(), "the original vec should still be empty here");
@@ -131,26 +127,22 @@ impl FinishedQuery {
 
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, time::SystemTime};
+    use chrono::Utc;
+    use sqlx::types::Json;
+    use uuid::Uuid;
 
-    use crate::models::metadata::{
-        types::{Filesize, Format, Resolution},
-        Metadata,
-    };
+    use crate::models::metadata::types::Format;
 
     use super::*;
 
     #[tokio::test]
     async fn sort_by_size() {
         let mut v: Vec<Media> = Vec::new();
-        for i in 0..10 {
-            v.push(Media {
-                metadata: {
-                    let mut m = create_default_metadata();
-                    m.filesize = Filesize(i as u64 * 1024);
-                    m
-                },
-                tags: vec![],
+        for len in 0..=10 {
+            v.push({
+                let mut m = create_default_media();
+                m.filesize = len as i64 * 1024;
+                m
             });
         }
 
@@ -169,24 +161,18 @@ mod tests {
     async fn sort_by_duration() {
         let mut v: Vec<Media> = Vec::new();
 
-        v.push(Media {
-            metadata: {
-                let mut m = create_default_metadata();
-                m.filesize = Filesize(2_000_000);
-                m
-            },
-            tags: vec![],
+        v.push({
+            let mut m = create_default_media();
+            m.filesize = 2_000_000;
+            m
         });
 
         for len in 1..=10 {
-            v.push(Media {
-                metadata: {
-                    let mut m = create_default_metadata();
-                    m.specific = SpecificMetadata::Video { length: len as f64 };
-                    m.filesize = Filesize(len as u64 * 1024);
-                    m
-                },
-                tags: vec![],
+            v.push({
+                let mut m = create_default_media();
+                *m.specific_metadata = SpecificMetadata::Video { length: len as f64 };
+                m.filesize = len as i64 * 1024;
+                m
             });
         }
 
@@ -199,7 +185,7 @@ mod tests {
 
         impl F for Media {
             fn get_length(&self) -> f64 {
-                if let SpecificMetadata::Video { length } = self.metadata.specific.clone() {
+                if let SpecificMetadata::Video { length } = self.specific_metadata.clone().0 {
                     length
                 } else {
                     0_f64
@@ -223,17 +209,20 @@ mod tests {
         );
     }
 
-    fn create_default_metadata() -> Metadata {
-        Metadata {
-            path: PathBuf::from("a"),
-            resolution: Resolution::new(1920, 1080),
-            filesize: Filesize(1024),
-            format: Format::new_from_mime("image/jpeg").unwrap(),
+    fn create_default_media() -> Media {
+        Media {
+            id: Uuid::nil(),
+            path: "a".into(),
+            filesize: 1024,
+            format: Json(Format::new_from_mime("image/jpeg").unwrap()),
             creation_date: None,
-            modified_date: None,
-            first_seen_date: SystemTime::now(),
-            specific: SpecificMetadata::Image {},
-            other: None,
+            modification_date: None,
+            first_seen_date: Utc::now(),
+            width_px: 1920,
+            height_px: 1080,
+            specific_metadata: Json(SpecificMetadata::Image {}),
+            other_metadata: None,
+            tags: Json(vec![]),
         }
     }
 }

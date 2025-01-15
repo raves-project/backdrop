@@ -7,6 +7,7 @@
 use std::{path::Path, time::Duration};
 
 use async_watcher::{AsyncDebouncer, DebouncedEventKind};
+use camino::Utf8Path;
 use tokio::sync::RwLock;
 
 use futures::stream::StreamExt;
@@ -28,16 +29,19 @@ impl Watch {
         tracing::debug!("got the following paths: {paths:?}");
 
         let watcher = debouncer.watcher();
-        _ = paths
-            .iter()
-            .map(|p| watcher.watch(p, async_watcher::notify::RecursiveMode::Recursive));
+        _ = paths.iter().map(|p| {
+            watcher.watch(
+                p.as_std_path(),
+                async_watcher::notify::RecursiveMode::Recursive,
+            )
+        });
 
         // start off by checking metadata for all watched files
         tracing::info!("the watcher is now online. performing initial scan on all files...");
 
         let stream = tokio_stream::iter(paths.iter())
             .map(|p| async move {
-                Self::handle_dir(p).await;
+                Self::handle_dir(p.as_std_path()).await;
             })
             .buffered(5);
 
@@ -77,7 +81,15 @@ impl Watch {
     async fn handle_file(path: &Path) {
         tracing::debug!("working on file...");
 
-        if let Err(e) = Media::update_metadata(path).await {
+        let Some(utf8_path) = Utf8Path::from_path(path) else {
+            tracing::warn!(
+                "Failed to process file, as its name could not be converted to UTF-8. path: {}",
+                path.display()
+            );
+            return;
+        };
+
+        if let Err(e) = Media::update_metadata(utf8_path).await {
             tracing::error!(
                 "Failed to update metadata for file at path `{}`. See error: `{e}`",
                 path.to_string_lossy()

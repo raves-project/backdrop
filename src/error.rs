@@ -1,4 +1,4 @@
-use async_watcher::error;
+// use async_watcher::error;
 use core::error::Error;
 use pisserror::Error;
 
@@ -75,7 +75,7 @@ pub enum RavesError {
 #[derive(Debug, Error)]
 pub enum DatabaseError {
     #[error("General database error. See: {_0}")]
-    GeneralDatabaseError(#[from] surrealdb::Error),
+    GeneralDatabaseError(#[from] sqlx::Error),
 
     #[error("Failed to connect to the database. See: {_0}")]
     ConnectionError(String),
@@ -84,10 +84,16 @@ pub enum DatabaseError {
     InsertionFailed(String),
 
     #[error("Failed to complete database query. See: {_0}")]
-    QueryFailed(surrealdb::Error),
+    QueryFailed(sqlx::Error),
 
     #[error("Empty response when attempting to query database. Path: `{_0}`")]
     EmptyResponse(String),
+}
+
+impl From<sqlx::Error> for RavesError {
+    fn from(value: sqlx::Error) -> Self {
+        RavesError::DatabaseError(DatabaseError::GeneralDatabaseError(value))
+    }
 }
 
 #[derive(Debug, Error)]

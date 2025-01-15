@@ -1,5 +1,6 @@
-use std::{path::PathBuf, sync::OnceLock};
+use std::sync::OnceLock;
 
+use camino::Utf8PathBuf;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::error::{bug_msg, ConfigError};
@@ -13,13 +14,13 @@ pub static CONFIG: OnceLock<SharedConfig> = OnceLock::new();
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     /// The paths that we'll be watching for new files.
-    pub watched_paths: Vec<PathBuf>,
+    pub watched_paths: Vec<Utf8PathBuf>,
 
     /// Path to the app's data directory.
-    pub data_dir: PathBuf,
+    pub data_dir: Utf8PathBuf,
 
     /// Path to the app's cache directory.
-    pub cache_dir: PathBuf,
+    pub cache_dir: Utf8PathBuf,
 
     /// Information for automatically reporting bugs.
     pub bug_report_info: BugReportInfo,
@@ -27,9 +28,9 @@ pub struct Config {
 
 impl Config {
     pub fn new(
-        watched_paths: Vec<PathBuf>,
-        data_dir: PathBuf,
-        cache_dir: PathBuf,
+        watched_paths: Vec<Utf8PathBuf>,
+        data_dir: Utf8PathBuf,
+        cache_dir: Utf8PathBuf,
         bug_report_info: BugReportInfo,
     ) -> Self {
         Self {
@@ -43,7 +44,7 @@ impl Config {
     /// Attempts to read a previous `Config` from disk.
     ///
     /// Note that this may fail across versions, requiring new configs.
-    pub async fn from_disk(data_dir: PathBuf) -> Result<Self, ConfigError> {
+    pub async fn from_disk(data_dir: Utf8PathBuf) -> Result<Self, ConfigError> {
         // read the config from disk
         let s = tokio::fs::read_to_string(data_dir.join("shared_prefs/config.toml"))
             .await
@@ -68,9 +69,9 @@ impl Config {
     ///
     /// The app should be the only one calling this.
     pub async fn init_config(
-        watched_paths: &[PathBuf],
-        data_dir: PathBuf,
-        cache_dir: PathBuf,
+        watched_paths: &[Utf8PathBuf],
+        data_dir: Utf8PathBuf,
+        cache_dir: Utf8PathBuf,
         bug_report_info: BugReportInfo,
     ) {
         if CONFIG.get().is_none() {
