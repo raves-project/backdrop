@@ -176,16 +176,6 @@ impl Media {
             .await?;
 
         Ok(record.id)
-
-        // let mut response = db
-        //     .query("SELECT id FROM info WHERE path = $path")
-        //     .bind(("path", self.path()))
-        //     .await
-        //     .map_err(DatabaseError::QueryFailed)?;
-
-        // maybe
-        //     .ok_or(DatabaseError::EmptyResponse(self.path_str()))
-        //     .map(|mr| mr.id)
     }
 
     /// Tries to grab the thumbnail from the database, if it's there.
@@ -198,16 +188,6 @@ impl Media {
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
-
-        // grab thumbnail from database
-        // let mut response = db
-        //     .thumbnails
-        //     .query("SELECT * FROM thumbnail WHERE image_id = $id")
-        //     .bind(("id", id))
-        //     .await
-        //     .map_err(DatabaseError::QueryFailed)?;
-
-        // let maybe: Option<Thumbnail> = response.take(0).map_err(DatabaseError::QueryFailed)?;
 
         Ok(Some(thumbnail))
     }
