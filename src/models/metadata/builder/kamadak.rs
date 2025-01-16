@@ -29,19 +29,22 @@ impl MediaBuilder {
         tracing::debug!("got exif data from kamadak-exif!");
 
         let p = In::PRIMARY;
-        let err = |msg: &str| RavesError::FileMissingMetadata(path.to_string(), msg.to_string());
+        let err = |msg: &str| {
+            tracing::error!("Error while building metadata with `kamadak-exif`. err: {msg}");
+            RavesError::FileMissingMetadata(path.to_string(), msg.to_string())
+        };
         tracing::debug!("looking for exif data...");
 
         // resolution
         let kamadak_exif::Value::Long(ref w) = exif
-            .get_field(Tag::ImageWidth, p)
+            .get_field(Tag::PixelXDimension, p)
             .ok_or(err("no width"))?
             .value
         else {
             return Err(err("no width"));
         };
         let kamadak_exif::Value::Long(ref h) = exif
-            .get_field(Tag::ImageLength, p)
+            .get_field(Tag::PixelYDimension, p)
             .ok_or(err("no height"))?
             .value
         else {
