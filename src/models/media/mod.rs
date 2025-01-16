@@ -1,9 +1,14 @@
 use camino::{Utf8Path, Utf8PathBuf};
 use chrono::{DateTime, Utc};
-use sqlx::types::{Json, Uuid};
+use sqlx::{
+    query::Query,
+    sqlite::SqliteArguments,
+    types::{Json, Uuid},
+    Sqlite,
+};
 
 use crate::{
-    database::DATABASE,
+    database::{InsertIntoTable, DATABASE},
     error::{DatabaseError, RavesError},
 };
 
@@ -17,7 +22,15 @@ pub mod load;
 
 /// Some media file.
 #[derive(
-    Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize, sqlx::FromRow,
+    Clone,
+    Debug,
+    PartialEq,
+    PartialOrd,
+    serde::Serialize,
+    serde::Deserialize,
+    sqlx::FromRow,
+    sqlx::Encode,
+    sqlx::Type,
 )]
 pub struct Media {
     /// Unique ID identifying which piece of media is represented.
@@ -67,6 +80,42 @@ pub struct Media {
     /// The tags of a media file. Note that these can come from the file's EXIF
     /// metadata or Rave's internals.
     pub tags: Json<Vec<Tag>>,
+}
+
+impl InsertIntoTable for Media {
+    fn make_insertion_query(&self) -> Query<'_, Sqlite, SqliteArguments<'_>> {
+        sqlx::query!(
+            r#"
+        INSERT INTO info 
+        (id, path, filesize, format, creation_date, modification_date, first_seen_date, width_px, height_px, specific_metadata, other_metadata, tags)
+        VALUES
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ON CONFLICT(id)
+        DO UPDATE SET
+            path = excluded.path,
+            filesize = excluded.filesize,
+            format = excluded.format,
+            creation_date = excluded.creation_date,
+            width_px = excluded.width_px,
+            height_px = excluded.height_px,
+            specific_metadata = excluded.specific_metadata,
+            other_metadata = excluded.other_metadata,
+            tags = excluded.tags;
+        "#,
+            self.id,
+            self.path,
+            self.filesize,
+            self.format,
+            self.creation_date,
+            self.modification_date,
+            self.first_seen_date,
+            self.width_px,
+            self.height_px,
+            self.specific_metadata,
+            self.other_metadata,
+            self.tags
+        )
+    }
 }
 
 impl Media {
