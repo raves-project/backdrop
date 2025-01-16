@@ -175,6 +175,7 @@ impl MediaBuilder {
         // err if the file doesn't open
         let metadata = tokio::fs::metadata(path)
             .await
+            .inspect_err(|e| tracing::warn!("Failed to open file for metadata. err: {e}"))
             .map_err(|_e| RavesError::MediaDoesntExist { path: path_str })?;
         tracing::debug!("got file metadata!");
 
