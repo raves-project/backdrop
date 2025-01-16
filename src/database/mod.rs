@@ -2,7 +2,7 @@
 
 use std::sync::LazyLock;
 
-use sqlx::{Pool, Sqlite};
+use sqlx::{query::Query, sqlite::SqliteArguments, Pool, Sqlite};
 
 pub const INFO_TABLE: &str = "info";
 pub const THUMBNAILS_TABLE: &str = "thumbnail";
@@ -24,3 +24,11 @@ pub static DATABASE: LazyLock<Pool<Sqlite>> = LazyLock::new(|| {
 
     pool
 });
+
+pub trait InsertIntoTable {
+    /// This function provides the query that we'll execute to insert this type
+    /// into the table defined above.
+    ///
+    /// This only constructs a query - it does not execute it!
+    fn make_insertion_query(&self) -> Query<'_, Sqlite, SqliteArguments<'_>>;
+}
