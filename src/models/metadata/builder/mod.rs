@@ -206,10 +206,11 @@ impl MediaBuilder {
         tracing::debug!("creating mime type for media file...");
 
         Ok((
-            Format::new_from_mime(mime.mime_type()).unwrap(),
-            // Format::new_from_mime(mime.mime_type()).ok_or(RavesError::FileNotSupportedMedia {
-            //     path: path_str.clone(),
-            // })?,
+            Format::new_from_mime(mime.mime_type())
+                .ok_or(RavesError::FileNotSupportedMedia {
+                    path: path_str.clone(),
+                })
+                .inspect_err(|e| tracing::error!("Failed to create MIME type! err: {e}"))?,
             mime,
         ))
     }
