@@ -1,6 +1,10 @@
 use camino::{Utf8Path, Utf8PathBuf};
 
-use crate::{database::DATABASE, error::RavesError, models::metadata::builder::MediaBuilder};
+use crate::{
+    database::{InsertIntoTable, DATABASE},
+    error::{DatabaseError, RavesError},
+    models::metadata::builder::MediaBuilder,
+};
 
 use super::Media;
 
@@ -24,7 +28,10 @@ impl Media {
         }
     }
 
-    /// Loads file (with metadata) from disk... no matter what.
+    /// Loads a piece of media from disk.
+    ///
+    /// This function will also cache the media file's metadata into the
+    /// database. If that fails, this function will error.
     #[tracing::instrument]
     pub async fn load_from_disk(path: &Utf8Path) -> Result<Self, RavesError> {
         // make sure the file exists
@@ -38,33 +45,23 @@ impl Media {
 
         // get metadata
         tracing::debug!("checking file properties...");
-        let _metadata = MediaBuilder::default().apply(path).await?;
+        let media = MediaBuilder::default().apply(path).await?;
 
-        // ok ok... we have everything else. let's save it now!
+        // ok ok... we have everything else. let's cache to the database now..!
         tracing::debug!("saving media to database...");
+        let mut conn = DATABASE.acquire().await?;
+        let query = media.make_insertion_query();
 
-        // let query = sqlx::query!("INSERT INTO info (id, path, filesize, format, creation_date, modification_date, first_seen_date, width_px, height_px, specific_metadata, other_metadata, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
-        // .bind(Uuid::new_v4()).bind;
+        query
+            .execute(&mut *conn)
+            .await
+            .inspect_err(|e| {
+                tracing::warn!(
+                    "Failed to insert new media into database. err: {e}, media: \n{media:#?}"
+                )
+            })
+            .map_err(|e| DatabaseError::InsertionFailed(e.to_string()))?;
 
-        // let db = RavesDb::connect().await?;
-        // let v: Vec<Media> = db
-        //     .media_info
-        //     .insert("info")
-        //     .content(Self {
-        //         metadata,
-        //         tags: Vec::new(), // TODO
-        //     })
-        //     .await
-        //     .map_err(|e| DatabaseError::InsertionFailed(e.to_string()))?;
-
-        // let constructed = v
-        //     .first()
-        //     .ok_or(DatabaseError::InsertionFailed(
-        //         "didn't get anything from return vec! :p".into(),
-        //     ))?
-        //     .clone();
-
-        // Ok(constructed)
-        todo!()
+        Ok(media)
     }
 }
