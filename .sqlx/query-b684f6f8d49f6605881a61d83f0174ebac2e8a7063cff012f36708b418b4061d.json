@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        INSERT INTO info \n        (id, path, filesize, format, creation_date, modification_date, first_seen_date, width_px, height_px, specific_metadata, other_metadata, tags)\n        VALUES\n        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)\n        ON CONFLICT(id)\n        DO UPDATE SET\n            path = excluded.path,\n            filesize = excluded.filesize,\n            format = excluded.format,\n            creation_date = excluded.creation_date,\n            width_px = excluded.width_px,\n            height_px = excluded.height_px,\n            specific_metadata = excluded.specific_metadata,\n            other_metadata = excluded.other_metadata,\n            tags = excluded.tags;\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 12
+    },
+    "nullable": []
+  },
+  "hash": "b684f6f8d49f6605881a61d83f0174ebac2e8a7063cff012f36708b418b4061d"
+}
