@@ -26,13 +26,10 @@ impl MediaBuilder {
             self.file(path),
             look(path),
         }?;
-
         tracing::debug!("got exif data from kamadak-exif!");
 
         let p = In::PRIMARY;
-
         let err = |msg: &str| RavesError::FileMissingMetadata(path.to_string(), msg.to_string());
-
         tracing::debug!("looking for exif data...");
 
         // resolution
@@ -97,6 +94,9 @@ async fn look(path: &Utf8Path) -> Result<KamadakExif, RavesError> {
         let exif_reader = kamadak_exif::Reader::new();
         exif_reader
             .read_from_container(&mut buf_reader)
+            .inspect_err(|e| {
+                tracing::warn!("`kamadak-exif` crate failed to get metadata. err: {e}")
+            })
             .map_err(|e| RavesError::KamadakExifError(path_str, e))
     })
     .await
