@@ -83,24 +83,35 @@ impl MediaBuilder {
     }
 }
 
-// to get rid of that god-forsaken `JoinError`
+/// We use this function to 'look' at the metadata of the file, returning EXIF
+/// information from `kamadak_exif`.
+///
+/// This is `async` as we use `tokio` to grab a file handle, then spawn a task
+/// to process it synchronously, awaiting its completion.
 async fn look(path: &Utf8Path) -> Result<KamadakExif, RavesError> {
-    let path = path.to_path_buf();
-    let path_str = path.to_string();
+    let path = path.to_path_buf(); // extends lifetime by copying data
 
-    tokio::task::spawn_blocking(|| -> Result<KamadakExif, RavesError> {
-        let mut file = std::fs::File::open(path).map_err(|_e| RavesError::MediaDoesntExist {
-            path: path_str.clone(),
-        })?;
+    // grab the file with tokio (avoid blocking)
+    let file = tokio::fs::File::open(path.to_path_buf())
+        .await
+        .inspect_err(|e| tracing::warn!("Failed to open file for `kamadak_exif`! err: {e}"))
+        .map_err(|e| RavesError::FileMetadataFailure {
+            path: path.clone().into(),
+            err: e,
+        })?
+        .into_std()
+        .await;
 
-        let mut buf_reader = std::io::BufReader::new(&mut file);
-        let exif_reader = kamadak_exif::Reader::new();
+    // make a buffer where we'll read the file
+    let mut buf_reader = std::io::BufReader::new(file);
+    let exif_reader = kamadak_exif::Reader::new();
+
+    // hand that off to `tokio`
+    tokio::task::spawn_blocking(move || -> Result<KamadakExif, RavesError> {
         exif_reader
             .read_from_container(&mut buf_reader)
-            .inspect_err(|e| {
-                tracing::warn!("`kamadak-exif` crate failed to get metadata. err: {e}")
-            })
-            .map_err(|e| RavesError::KamadakExifError(path_str, e))
+            .inspect_err(|e| tracing::warn!("`kamadak-exif` failed to get metadata. err: {e}"))
+            .map_err(|e| RavesError::KamadakExifError(path.to_string(), e))
     })
     .await
     .map_err(RavesError::TokioJoinError)?
