@@ -4,7 +4,9 @@
 --
 CREATE TABLE info(
     id TEXT NOT NULL PRIMARY KEY,
-    path TEXT NOT NULL UNIQUE,
+    -- note: this would preferably be unique, but that messes with modern sqlite
+    --       update-insert syntax...
+    path TEXT NOT NULL,
     filesize INTEGER NOT NULL,
     format TEXT NOT NULL,
     creation_date DATETIME,
