@@ -325,5 +325,89 @@ pub fn get_video_len(path: &Utf8Path) -> Result<SpecificMetadata, RavesError> {
         length: video_length,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use std::env::temp_dir;
+
+    use camino::Utf8PathBuf;
+    use chrono::{DateTime, Utc};
+    use sqlx::types::Json;
+    use uuid::Uuid;
+
+    use crate::{
+        database::{self, InsertIntoTable as _, DATABASE, INFO_TABLE},
+        models::{
+            media::Media,
+            metadata::{types::Format, SpecificMetadata},
+        },
+    };
+
+    use super::MediaBuilder;
+
+    /// The `MediaBuilder` should keep the `id` and `first_seen_date` fields as-is.
+    #[tokio::test]
+    async fn media_builder_keeps_static_fields() {
+        // set up the db
+        database::DB_FOLDER_PATH
+            .set(Utf8PathBuf::try_from(temp_dir()).unwrap())
+            .unwrap();
+
+        // add a fake file to it
+        let old_media = Media {
+            id: Uuid::nil(),
+            path: "tests/assets/fear.avif".into(),
+            filesize: 0,
+            format: Json(Format::new_from_mime("image/avif").unwrap()),
+            creation_date: None,
+            modification_date: None,
+            first_seen_date: DateTime::<Utc>::MIN_UTC,
+            width_px: 32,
+            height_px: 32,
+            specific_metadata: Json(SpecificMetadata::Image {}),
+            other_metadata: None,
+            tags: Json(vec![]),
+        };
+
+        // insert into db
+        let mut conn = DATABASE.acquire().await.unwrap();
+        old_media
+            .make_insertion_query()
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+
+        // now run the media builder on a real file...
+        let new_media = MediaBuilder::default()
+            .apply("tests/assets/fear.avif")
+            .await
+            .unwrap();
+
+        assert_eq!(old_media.id, new_media.id, "same uuids");
+        assert_eq!(
+            old_media.first_seen_date, new_media.first_seen_date,
+            "same first seen dates"
+        );
+
+        // insert into the database and ensure they're still accurate
+        new_media
+            .make_insertion_query()
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+        let inserted_new_media =
+            sqlx::query_as::<_, Media>(&format!("SELECT * FROM {INFO_TABLE} LIMIT 1"))
+                .fetch_one(&mut *conn)
+                .await
+                .unwrap();
+
+        assert_eq!(
+            old_media.id, inserted_new_media.id,
+            "post-insert same uuids"
+        );
+        assert_eq!(
+            old_media.first_seen_date, inserted_new_media.first_seen_date,
+            "post-insert same first seen dates"
+        );
     }
 }
