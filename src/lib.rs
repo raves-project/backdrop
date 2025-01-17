@@ -50,6 +50,17 @@ Under active development.
         - Issueify: Implement a "queue" of operations to perform on the data. Create `Future`s for each operation and lock affected media from operations until they are no longer used.
             - Locked media should only have some attributes locked, if even necessary at all. (i.e. the queue isn't running multiple things at once)
             - How does this affect search/navigation?
+
+## Usage
+
+You'll want to do three things when using this library in the app:
+
+1. Setup logging to see the library's messages. (`tracing_subscriber`)
+1. Make or load a configuration for the library. (`config::CONFIG`)
+2. Use `database::DB_FOLDER_PATH.set(<path>)` to say where the database is (or will be) located.
+3. Start the file watcher with `Watch::watch()`.
+
+It's important that these tasks are performed **before** using the library. Otherwise, the backend will not be correctly initialized, and bugs may result.
 */
 
 pub mod config;
