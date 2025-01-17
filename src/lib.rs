@@ -21,8 +21,8 @@ To build this, there are a few dependencies you need to install. I use Fedora, b
 Under active development.
 
 - [ ] GOAL: Feature-completeness
-    - [ ] Metadata scanning for `Media`
-        - [ ] Images
+    - [x] Metadata scanning for `Media`
+        - [x] Images
         - [ ] GIFS
         - [ ] Video
         - [ ] General (including Folder. i.e. `stat`)

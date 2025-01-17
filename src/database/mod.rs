@@ -12,6 +12,7 @@ use sqlx::{
     Pool, Sqlite,
 };
 
+pub const HASHES_TABLE: &str = "hashes";
 pub const INFO_TABLE: &str = "info";
 pub const THUMBNAILS_TABLE: &str = "thumbnail";
 
