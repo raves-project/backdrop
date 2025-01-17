@@ -1,4 +1,5 @@
 // use async_watcher::error;
+use camino::Utf8PathBuf;
 use core::error::Error;
 use pisserror::Error;
 
@@ -132,4 +133,14 @@ pub enum ThumbnailError {
 
     #[error("FFmpeg never found a good thumbnail for the video at path `{_0}`.")]
     FfmpegNoSelectedFilter(String),
+}
+
+/// An error that occurred while hashing.
+#[derive(Debug, Error)]
+pub enum HashError {
+    #[error("Failed to access the database. err: {_0}")]
+    DatabaseAccess(#[from] sqlx::Error),
+
+    #[error("Failed to read file at `{_0}`. err: {_1}")]
+    FileReadFailure(Utf8PathBuf, std::io::Error),
 }
