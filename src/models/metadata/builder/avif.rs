@@ -20,6 +20,8 @@ impl MediaBuilder {
         path: impl AsRef<Utf8Path>,
         format: Format,
     ) -> Result<(), RavesError> {
+        tracing::debug!("Parsing media file metadata with `avif-parse`...");
+
         // cast path
         let path = path.as_ref();
 

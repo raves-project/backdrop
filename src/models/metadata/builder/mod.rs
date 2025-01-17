@@ -22,6 +22,7 @@ use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 
 use crate::{
+    database::{DATABASE, INFO_TABLE},
     error::RavesError,
     models::{
         media::Media,
@@ -38,11 +39,6 @@ use crate::{
 /// form.
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct MediaBuilder {
-    /// Unique ID identifying which piece of media is represented.
-    ///
-    /// This should match with the thumbnail database.
-    pub id: Uuid,
-
     /// The last known file path for this media file.
     pub path: Option<String>,
 
@@ -61,9 +57,6 @@ pub struct MediaBuilder {
     ///
     /// Might be inaccurate or missing.
     pub modification_date: Option<DateTime<Utc>>,
-
-    /// The time the file was first noted by Raves.
-    pub first_seen_date: DateTime<Utc>,
 
     /// The media's width (horizontal) in pixels.
     pub width_px: Option<u32>,
@@ -224,48 +217,66 @@ impl MediaBuilder {
     /// This will return a None if no file metadata could be gathered.
     #[tracing::instrument(skip(self))]
     async fn build(self) -> Result<Media, RavesError> {
-        let path_str = self
-            .path
-            .clone()
-            .map(|p| p.to_string())
-            .unwrap_or("no path given".into());
+        let path = self.path.ok_or(RavesError::FileMissingMetadata(
+            "... no path".into(),
+            "no path given".into(),
+        ))?;
+
+        // if the media was previously saved in the database, we'll need to use
+        // its id and 'first seen date'
+        let (id, first_seen_date) = {
+            let mut conn = DATABASE.acquire().await.inspect_err(|e| {
+                tracing::error!("Failed to connect to database in metadata builder! err: {e}")
+            })?;
+
+            // TODO: when we start doing file hashes, we can check that too.
+            // (the path is somewhat likely to change over time, but not hash!)
+            let old_media_query =
+                sqlx::query_as::<_, Media>(&format!("SELECT * FROM {INFO_TABLE} WHERE path = $1"))
+                    .bind(&path)
+                    .fetch_optional(&mut *conn)
+                    .await
+                    .inspect_err(|e| tracing::error!("Failed to query database! err: {e}"))?;
+
+            if let Some(old_media) = old_media_query {
+                (old_media.id, old_media.first_seen_date)
+            } else {
+                (Uuid::new_v4(), Utc::now())
+            }
+        };
 
         Ok(Media {
-            id: self.id,
+            id,
 
-            path: self.path.ok_or(RavesError::FileMissingMetadata(
-                path_str.clone(),
-                "no path given".into(),
-            ))?,
+            path: path.clone(),
             filesize: self.filesize.ok_or(RavesError::FileMissingMetadata(
-                path_str.clone(),
+                path.clone(),
                 "no file size given".into(),
             ))?,
             creation_date: self.creation_date,
             modification_date: self.modification_date,
 
             format: self.format.ok_or(RavesError::FileMissingMetadata(
-                path_str.clone(),
+                path.clone(),
                 "no format given".into(),
             ))?,
             width_px: self.width_px.ok_or(RavesError::FileMissingMetadata(
-                path_str.clone(),
+                path.clone(),
                 "no width (res) given".into(),
             ))?,
             height_px: self.height_px.ok_or(RavesError::FileMissingMetadata(
-                path_str.clone(),
+                path.clone(),
                 "no width (res) given".into(),
             ))?,
             specific_metadata: self
                 .specific_metadata
                 .ok_or(RavesError::FileMissingMetadata(
-                    path_str.clone(),
+                    path.clone(),
                     "no specific metadata (file kind variant)".into(),
                 ))?,
             other_metadata: self.other_metadata,
 
-            // FIXME: HEYYYYY! THIS IS WRONG: MUST CHECK DATABASE!!!
-            first_seen_date: self.first_seen_date,
+            first_seen_date,
 
             tags: self.tags,
         })
@@ -275,13 +286,11 @@ impl MediaBuilder {
 impl Default for MediaBuilder {
     fn default() -> Self {
         Self {
-            id: Uuid::new_v4(),
             path: None,
             filesize: None,
             format: None,
             creation_date: None,
             modification_date: None,
-            first_seen_date: Utc::now(),
             width_px: None,
             height_px: None,
             specific_metadata: None,
@@ -315,4 +324,6 @@ pub fn get_video_len(path: &Utf8Path) -> Result<SpecificMetadata, RavesError> {
     Ok(SpecificMetadata::Video {
         length: video_length,
     })
+}
+    }
 }
