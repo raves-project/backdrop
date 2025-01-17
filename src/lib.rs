@@ -38,6 +38,9 @@ Under active development.
             - If we go the route of having People (i.e. machine learning), we should be able to associate folks with their tags.
             - If a person is named "Barrett", allow users to associate them with the "barrett" tag (or any other).
                 - for UI: warn on low overlap.
+        - [ ] Recommended people tags
+            - When they know someone is often involved with other tags, a user can add tags to show up by default.
+            - ex: Dad has "family", "home", "overweight", etc.
     - [ ] Search
         - You should be able to search the database for virtually anything.
     - [ ] Cleanup
