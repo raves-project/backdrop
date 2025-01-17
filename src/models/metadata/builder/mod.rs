@@ -5,6 +5,7 @@
 //! Note that this should eventually be replaced with a fleshed-out library
 //! with full support for all these types!
 
+pub mod avif;
 pub mod image_crate;
 pub mod kamadak;
 pub mod matroska;
@@ -107,15 +108,18 @@ impl MediaBuilder {
         tracing::debug!("applying metadata...");
         match media_kind {
             MediaKind::Photo => {
-                // kamadak-exif has a lot of photo formats
-                let kamadak = self.apply_kamadak_exif(path, format.clone()).await;
-                if kamadak.is_ok() {
-                    return self.build().await;
+                // first, if we think it's an avif file, use the `avif-parse` crate!
+                if format.mime_type().to_lowercase().contains("avif") {
+                    let _avif = self.apply_avif(path, format.clone()).await;
                 }
 
+                // kamadak-exif has a lot of photo formats
+                let _kamadak = self.apply_kamadak_exif(path, format.clone()).await;
+
                 // fallback to image crate
-                tracing::warn!("couldn't get metadata from kamadak-exif. using image crate...");
-                self.apply_image(path, format).await?;
+                let _image = self.apply_image(path, format).await;
+
+                return self.build().await;
             }
             MediaKind::Video => {
                 // nom_exif supports mp4 and mov.

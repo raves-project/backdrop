@@ -47,6 +47,9 @@ pub enum RavesError {
     #[error("An error occured when parsing the Matroska video at `{_0}`. See: `{_1}`.")]
     MatroskaError(String, matroska::Error),
 
+    #[error("Failed to parse AVIF metadata. See: {_0}")]
+    AvifParseError(#[from] avif_parse::Error),
+
     #[error("Failed to get file metadata for the media file at `{path}`. Err: `{err}`.")]
     FileMetadataFailure { path: String, err: std::io::Error },
 
