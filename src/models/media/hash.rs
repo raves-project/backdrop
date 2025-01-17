@@ -52,6 +52,24 @@ impl MediaHash {
             .map(|hasher| hasher.finalize())
     }
 
+    /// Attempts to add this hash to the [`HASHES_TABLE`].
+    #[tracing::instrument]
+    pub async fn add_to_table(&self) -> Result<(), DatabaseError> {
+        let mut conn = DATABASE
+            .acquire()
+            .await
+            .inspect_err(|e| tracing::error!("Failed to connect to database. err: {e}"))
+            .map_err(|e| DatabaseError::ConnectionError(e.to_string()))?;
+
+        self.make_insertion_query()
+            .execute(&mut *conn)
+            .await
+            .inspect_err(|e| tracing::error!("Hash insertion failed! err: {e}"))
+            .map_err(|e| DatabaseError::InsertionFailed(e.to_string()))
+            .map(|_query_response| ())
+    }
+}
+
 impl InsertIntoTable for MediaHash {
     #[tracing::instrument]
     fn make_insertion_query(&self) -> Query<'_, Sqlite, SqliteArguments<'_>> {
