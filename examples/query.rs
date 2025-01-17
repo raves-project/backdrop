@@ -2,9 +2,9 @@
 
 use backdrop::{
     database::DATABASE,
-    models::{
-        media::Media,
+    models::media::{
         metadata::{Orientation, Resolution},
+        Media,
     },
 };
 

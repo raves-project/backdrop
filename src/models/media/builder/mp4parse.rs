@@ -8,7 +8,10 @@ use sqlx::types::Json;
 
 use crate::{
     error::RavesError,
-    models::metadata::{builder::get_video_len, Format, MediaKind},
+    models::media::{
+        builder::get_video_len,
+        metadata::{Format, MediaKind},
+    },
 };
 
 use super::MediaBuilder;

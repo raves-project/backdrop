@@ -20,7 +20,7 @@ use crate::{
     config::Config,
     database::DATABASE,
     error::{RavesError, ThumbnailError},
-    models::{media::Media, metadata::SpecificMetadata},
+    models::media::{metadata::SpecificMetadata, Media},
 };
 
 #[derive(

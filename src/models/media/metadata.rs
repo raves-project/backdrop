@@ -1,5 +1,3 @@
-pub mod builder;
-
 use std::collections::HashMap;
 
 /// Metadata "specific" to one type of media.

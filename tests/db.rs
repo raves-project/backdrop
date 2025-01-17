@@ -14,7 +14,7 @@ mod tests {
 
     use backdrop::{
         database::{self, DATABASE},
-        models::{media::Media, metadata::Format},
+        models::media::{metadata::Format, Media},
     };
     use camino::{Utf8Path, Utf8PathBuf};
     use uuid::Uuid;

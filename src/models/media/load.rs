@@ -3,7 +3,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use crate::{
     database::{InsertIntoTable, DATABASE},
     error::{DatabaseError, RavesError},
-    models::metadata::builder::MediaBuilder,
+    models::media::builder::MediaBuilder,
 };
 
 use super::Media;

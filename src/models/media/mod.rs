@@ -8,19 +8,17 @@ use sqlx::{
     Sqlite,
 };
 
+use super::{tags::Tag, thumbnail::Thumbnail};
 use crate::{
     database::{InsertIntoTable, DATABASE},
     error::{DatabaseError, HashError, RavesError},
 };
+use metadata::{Format, OtherMetadataMap, SpecificMetadata};
 
-use super::{
-    metadata::{Format, OtherMetadataMap, SpecificMetadata},
-    tags::Tag,
-    thumbnail::Thumbnail,
-};
-
+mod builder;
 pub mod hash;
 pub mod load;
+pub mod metadata;
 
 /// Some media file.
 #[derive(
