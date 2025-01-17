@@ -75,7 +75,13 @@ impl InsertIntoTable for MediaHash {
     fn make_insertion_query(&self) -> Query<'_, Sqlite, SqliteArguments<'_>> {
         // NOTE: if changing `HASHES_TABLE`, also change this!
         sqlx::query!(
-            "INSERT INTO hashes (media_id, hash) VALUES ($1, $2)",
+            r#"
+            INSERT INTO hashes (media_id, hash) 
+            VALUES ($1, $2) 
+            ON CONFLICT(media_id)
+            DO UPDATE SET
+                hash = excluded.hash;
+            "#,
             self.media_id,
             self.hash
         )
