@@ -68,6 +68,7 @@ impl Config {
     /// Use this EXACTLY ONCE to initialize the config.
     ///
     /// The app should be the only one calling this.
+    #[tracing::instrument]
     pub async fn init_config(
         watched_paths: &[Utf8PathBuf],
         data_dir: Utf8PathBuf,
