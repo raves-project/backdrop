@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO hashes (media_id, hash) \n            VALUES ($1, $2) \n            ON CONFLICT(media_id)\n            DO UPDATE SET\n                hash = excluded.hash;\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "300f24b05e9d9ea142221747d442b64157f80010ebf865415387fe304176631b"
+}
