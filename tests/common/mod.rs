@@ -3,7 +3,6 @@
 //! Mostly to import the setup stuff below.
 
 use camino::Utf8PathBuf;
-use tokio::sync::RwLock;
 
 use std::{
     env::temp_dir,
@@ -77,12 +76,13 @@ pub async fn setup(args: Setup) {
 /// Initializes the config static with testing values.
 pub async fn init_config_testing(watched_paths: &[Utf8PathBuf]) {
     if CONFIG.get().is_none() {
-        RwLock::new(Config::init_config(
+        Config::init_config(
             watched_paths,
             temp_dir().try_into().unwrap(),
             temp_dir().try_into().unwrap(),
             new_bug_report_info_testing(),
-        ));
+        )
+        .await;
     } else {
         tracing::error!(
             "attempted to init the config, but the config is already running. {}",
