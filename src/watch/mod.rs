@@ -18,14 +18,14 @@ pub struct Watch;
 
 impl Watch {
     #[tracing::instrument(skip_all)]
-    pub async fn watch(conf: RwLock<Config>) {
+    pub async fn watch() {
         tracing::info!("starting watcher...");
         let (mut debouncer, mut file_events) =
             AsyncDebouncer::new_with_channel(Duration::from_millis(100), None)
                 .await
                 .expect("watcher should be configured correctly");
 
-        let paths = conf.read().await.watched_paths.clone();
+        let paths = Config::read().await.watched_paths.clone();
         tracing::debug!("got the following paths: {paths:?}");
 
         let watcher = debouncer.watcher();
