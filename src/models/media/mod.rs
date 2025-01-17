@@ -18,6 +18,7 @@ use super::{
     thumbnail::Thumbnail,
 };
 
+pub mod hash;
 pub mod load;
 
 /// Some media file.
@@ -82,42 +83,6 @@ pub struct Media {
     pub tags: Json<Vec<Tag>>,
 }
 
-impl InsertIntoTable for Media {
-    fn make_insertion_query(&self) -> Query<'_, Sqlite, SqliteArguments<'_>> {
-        sqlx::query!(
-            r#"
-        INSERT INTO info 
-        (id, path, filesize, format, creation_date, modification_date, first_seen_date, width_px, height_px, specific_metadata, other_metadata, tags)
-        VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-        ON CONFLICT(id)
-        DO UPDATE SET
-            path = excluded.path,
-            filesize = excluded.filesize,
-            format = excluded.format,
-            creation_date = excluded.creation_date,
-            width_px = excluded.width_px,
-            height_px = excluded.height_px,
-            specific_metadata = excluded.specific_metadata,
-            other_metadata = excluded.other_metadata,
-            tags = excluded.tags;
-        "#,
-            self.id,
-            self.path,
-            self.filesize,
-            self.format,
-            self.creation_date,
-            self.modification_date,
-            self.first_seen_date,
-            self.width_px,
-            self.height_px,
-            self.specific_metadata,
-            self.other_metadata,
-            self.tags
-        )
-    }
-}
-
 impl Media {
     /// Grabs the path of this media file.
     pub fn path(&self) -> Utf8PathBuf {
@@ -138,15 +103,6 @@ impl Media {
         if let Some(thumbnail) = self.database_get_thumbnail().await? {
             return Ok(thumbnail);
         }
-
-        // we havn't cached one yet...
-        // first, let's see if the media file contains one for us to use
-        // TODO: put this back if we use exiv2 again or something
-        // if let Some(raw_thumbnail) = self.gexif2_get_thumbnail().await? {
-        //     // let's save the file first
-        //     let rep = Thumbnail::new(id).await;
-        //     rep.save_from_buffer(&raw_thumbnail, self).await?;
-        // }
 
         // the file doesn't have one either! let's make one ;D
         let thumbnail = Thumbnail::new(&self.id().await?).await;
@@ -192,19 +148,38 @@ impl Media {
         Ok(Some(thumbnail))
     }
 
-    // /// Tries to get a thumbnail from the media file's EXIF data.
-    // ///
-    // /// Note that this is often uncommon for fully-digital media, like screenshots.
-    // async fn gexif2_get_thumbnail(&self) -> Result<Option<Vec<u8>>, RavesError> {
-    //     // check the file's properties
-    //     let m = block_in_place(|| {
-    //         rexiv2::Metadata::new_from_path(self.path()).map_err(|_e| {
-    //             RavesError::MediaDoesntExist {
-    //                 path: self.path_str(),
-    //             }
-    //         })
-    //     })?;
-
-    //     Ok(m.get_thumbnail().map(|bstr| bstr.to_vec()))
-    // }
+impl InsertIntoTable for Media {
+    fn make_insertion_query(&self) -> Query<'_, Sqlite, SqliteArguments<'_>> {
+        sqlx::query!(
+            r#"
+        INSERT INTO info 
+        (id, path, filesize, format, creation_date, modification_date, first_seen_date, width_px, height_px, specific_metadata, other_metadata, tags)
+        VALUES
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ON CONFLICT(id)
+        DO UPDATE SET
+            path = excluded.path,
+            filesize = excluded.filesize,
+            format = excluded.format,
+            creation_date = excluded.creation_date,
+            width_px = excluded.width_px,
+            height_px = excluded.height_px,
+            specific_metadata = excluded.specific_metadata,
+            other_metadata = excluded.other_metadata,
+            tags = excluded.tags;
+        "#,
+            self.id,
+            self.path,
+            self.filesize,
+            self.format,
+            self.creation_date,
+            self.modification_date,
+            self.first_seen_date,
+            self.width_px,
+            self.height_px,
+            self.specific_metadata,
+            self.other_metadata,
+            self.tags
+        )
+    }
 }
