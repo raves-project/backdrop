@@ -63,4 +63,24 @@ mod tests {
             "hash_file hash + db hash are the same"
         );
     }
+
+    #[tokio::test]
+    async fn hardcoded_hash() {
+        setup(Setup::new(6673)).await;
+
+        const FEAR_AVIF_HASH: [u8; 32] = [
+            0xf8, 0xc, 0xa1, 0x56, 0x78, 0xa3, 0x16, 0xe8, 0x29, 0xa5, 0xd4, 0x9e, 0x1a, 0xad,
+            0x9b, 0xdc, 0x66, 0xb6, 0xa1, 0xa2, 0xe6, 0x2a, 0xac, 0xc3, 0x47, 0xfe, 0xba, 0x71,
+            0x15, 0xec, 0xd5, 0x2c,
+        ];
+
+        // hash the file
+        let media = Media::new("tests/assets/fear.avif".into()).await.unwrap();
+        let hash = media.hash().await.unwrap().0;
+
+        assert_eq!(
+            FEAR_AVIF_HASH, *hash.hash,
+            "hardcoded hash is eq to runtime one."
+        );
+    }
 }
