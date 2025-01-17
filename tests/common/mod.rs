@@ -18,6 +18,11 @@ use backdrop::{
 use tracing_subscriber::{filter, layer::SubscriberExt as _, util::SubscriberInitExt as _, Layer};
 use uuid::Uuid;
 
+/// One above the last-used port in `setup`.
+///
+/// Use this in the next created test.
+const _AVAILABLE_PORT: u16 = 6674;
+
 /// args for setup
 #[allow(dead_code, reason = "it's used in the other tests")]
 pub struct Setup {
