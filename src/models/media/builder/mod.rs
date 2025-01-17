@@ -25,11 +25,12 @@ use crate::{
     database::{DATABASE, INFO_TABLE},
     error::RavesError,
     models::{
-        media::Media,
-        metadata::{Format, MediaKind, OtherMetadataMap, SpecificMetadata},
+        media::{metadata::MediaKind, Media},
         tags::Tag,
     },
 };
+
+use super::metadata::{Format, OtherMetadataMap, SpecificMetadata};
 
 /// A media file's metadata. Common metadata is always present, while the `other`
 /// field represents that which isn't standard in a dictionary (string, string)
@@ -350,9 +351,9 @@ mod tests {
 
     use crate::{
         database::{self, InsertIntoTable as _, DATABASE, INFO_TABLE},
-        models::{
-            media::Media,
+        models::media::{
             metadata::{Format, SpecificMetadata},
+            Media,
         },
     };
 

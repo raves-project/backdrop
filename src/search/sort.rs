@@ -2,8 +2,7 @@
 
 use core::mem;
 
-use crate::models::media::Media;
-use crate::models::metadata::SpecificMetadata;
+use crate::models::media::{metadata::SpecificMetadata, Media};
 
 pub struct PreparedQuery {
     pub initial_select: String, // something like "SELECT * FROM info"
@@ -131,7 +130,7 @@ mod tests {
     use sqlx::types::Json;
     use uuid::Uuid;
 
-    use crate::models::metadata::Format;
+    use crate::models::media::metadata::Format;
 
     use super::*;
 

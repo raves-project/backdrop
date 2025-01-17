@@ -4,7 +4,7 @@ use sqlx::types::Json;
 
 use crate::{
     error::RavesError,
-    models::metadata::{Format, MediaKind, SpecificMetadata},
+    models::media::metadata::{Format, MediaKind, SpecificMetadata},
 };
 
 use super::MediaBuilder;
