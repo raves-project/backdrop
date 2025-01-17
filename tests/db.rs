@@ -6,22 +6,37 @@
 //! Futher contributions to these tests, like weird media, metadata, or
 //! regression cases, are greatly appreciated!
 
+mod common;
+
 #[cfg(test)]
 mod tests {
+    use std::env::temp_dir;
+
     use backdrop::{
-        database::DATABASE,
+        database::{self, DATABASE},
         models::{media::Media, metadata::types::Format},
     };
-    use camino::Utf8Path;
+    use camino::{Utf8Path, Utf8PathBuf};
+    use uuid::Uuid;
 
     /// The database can cache metadata for the beach photo.
     #[tokio::test]
     async fn beach() {
-        // start logging OR make tokio debugger socket
-        //
-        // (uncomment one)
-        tracing_subscriber::fmt().init();
-        // console_subscriber::init();
+        // set up the database
+        {
+            let db_temp_dir = Utf8PathBuf::try_from(temp_dir())
+                .unwrap()
+                .join(Uuid::new_v4().to_string())
+                .join("_raves_db");
+
+            tokio::fs::create_dir_all(&db_temp_dir)
+                .await
+                .expect("create db temp dir");
+
+            database::DB_FOLDER_PATH
+                .set(db_temp_dir)
+                .expect("db folder path should be unset");
+        }
 
         // grab database connection from pool
         let mut conn = DATABASE.acquire().await.expect("make database connection");
