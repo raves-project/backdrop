@@ -17,9 +17,21 @@ pub async fn bug_msg() -> String {
 
 #[derive(Debug, Error)]
 pub enum RavesError {
+    //
+    // other errors
+    //
     #[error("The database has encountered an error. See: `{_0}`")]
     DatabaseError(#[from] DatabaseError),
 
+    #[error("Error while computing hash. See: {_0}")]
+    HashError(#[from] HashError),
+
+    #[error("An error occurred when processing media thumbnail data. See: `{_0}`")]
+    MediaThumbnail(#[from] ThumbnailError),
+
+    //
+    // etc errors
+    //
     #[error("The media file at `{path}` was expected to exist, but didn't.")]
     MediaDoesntExist { path: String },
 
@@ -29,7 +41,9 @@ pub enum RavesError {
     #[error("The media file at `{path}` is not a supported media file.")]
     FileNotSupportedMedia { path: String },
 
+    //
     // metadata
+    //
     #[error("The media file at `{_0}` was missing required metadata: {_1}")]
     FileMissingMetadata(String, String),
 
@@ -53,9 +67,6 @@ pub enum RavesError {
 
     #[error("Failed to get file metadata for the media file at `{path}`. Err: `{err}`.")]
     FileMetadataFailure { path: String, err: std::io::Error },
-
-    #[error("An error occurred when processing media thumbnail data. See: `{_0}`")]
-    MediaThumbnail(#[from] ThumbnailError),
 
     #[error("A `tokio` task unexpectedly panicked. See: `{_0}`")]
     TokioJoinError(#[from] tokio::task::JoinError),
