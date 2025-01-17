@@ -6,9 +6,8 @@ use tokio::try_join;
 use crate::{
     error::RavesError,
     models::metadata::{
-        builder::get_video_len,
-        types::{Format, MediaKind},
-        OtherMetadataMap, OtherMetadataValue, SpecificMetadata,
+        builder::get_video_len, Format, MediaKind, OtherMetadataMap, OtherMetadataValue,
+        SpecificMetadata,
     },
 };
 

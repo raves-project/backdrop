@@ -13,7 +13,7 @@ use crate::{
 };
 
 use super::{
-    metadata::{types::Format, OtherMetadataMap, SpecificMetadata},
+    metadata::{Format, OtherMetadataMap, SpecificMetadata},
     tags::Tag,
     thumbnail::Thumbnail,
 };

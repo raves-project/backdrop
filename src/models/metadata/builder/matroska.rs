@@ -5,10 +5,7 @@
 
 use crate::{
     error::RavesError,
-    models::metadata::{
-        types::{Format, MediaKind},
-        SpecificMetadata,
-    },
+    models::metadata::{Format, MediaKind, SpecificMetadata},
 };
 
 use camino::Utf8Path;

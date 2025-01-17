@@ -8,7 +8,7 @@ mod tests {
 
     use backdrop::{
         database::{DATABASE, INFO_TABLE},
-        models::{media::Media, metadata::types::Format},
+        models::{media::Media, metadata::Format},
         watch::Watch,
     };
 

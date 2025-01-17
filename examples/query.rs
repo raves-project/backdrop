@@ -4,7 +4,7 @@ use backdrop::{
     database::DATABASE,
     models::{
         media::Media,
-        metadata::types::{Orientation, Resolution},
+        metadata::{Orientation, Resolution},
     },
 };
 

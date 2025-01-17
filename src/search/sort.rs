@@ -131,7 +131,7 @@ mod tests {
     use sqlx::types::Json;
     use uuid::Uuid;
 
-    use crate::models::metadata::types::Format;
+    use crate::models::metadata::Format;
 
     use super::*;
 

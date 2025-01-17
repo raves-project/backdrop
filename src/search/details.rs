@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use crate::models::metadata::types::Framerate;
+use crate::models::metadata::Framerate;
 
 use jiff::Zoned;
 

@@ -26,10 +26,7 @@ use crate::{
     error::RavesError,
     models::{
         media::Media,
-        metadata::{
-            types::{Format, MediaKind},
-            OtherMetadataMap, SpecificMetadata,
-        },
+        metadata::{Format, MediaKind, OtherMetadataMap, SpecificMetadata},
         tags::Tag,
     },
 };
@@ -339,7 +336,7 @@ mod tests {
         database::{self, InsertIntoTable as _, DATABASE, INFO_TABLE},
         models::{
             media::Media,
-            metadata::{types::Format, SpecificMetadata},
+            metadata::{Format, SpecificMetadata},
         },
     };
 
