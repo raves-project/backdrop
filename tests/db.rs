@@ -44,10 +44,9 @@ mod tests {
         // ask it to cache the beach image.
         //
         // (loading from disk will also cache metadata into db)
-        let media =
-            Media::load_from_disk(Utf8Path::new("tests/assets/beach_location_and_tagged.jpg"))
-                .await
-                .expect("beach image should be found. (make sure you're running from crate root)");
+        let media = Media::load(Utf8Path::new("tests/assets/beach_location_and_tagged.jpg"))
+            .await
+            .expect("beach image should be found. (make sure you're running from crate root)");
 
         let media_id = media.id; // TODO: remove media local and just use .id on it directly
 

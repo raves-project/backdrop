@@ -61,13 +61,13 @@ impl Thumbnail {
         let media = media_ext.clone();
 
         // ok we have the media. let's use it
-        let thumbnail_buffer = match media.specific_type() {
+        let thumbnail_buffer = match media.specific_metadata.0.clone() {
             SpecificMetadata::Image { .. } => {
                 // let's read it into a buffer
-                tokio::fs::read(media.path())
+                tokio::fs::read(&media.path)
                     .await
                     .map_err(|_e| RavesError::MediaDoesntExist {
-                        path: media.path_str(),
+                        path: media.path.clone(),
                     })?
             }
 
@@ -78,11 +78,11 @@ impl Thumbnail {
                     ffmpeg_next::init()?;
 
                     // let's start out by finding that change
-                    let mut input = input(&media.path())?;
+                    let mut input = input(&media.path)?;
                     let input_stream = input
                         .streams()
                         .best(ffmpeg_next::media::Type::Video)
-                        .ok_or(RavesError::FfmpegNoGoodVideoStreams(media.path_str()))?;
+                        .ok_or(RavesError::FfmpegNoGoodVideoStreams(media.path.clone()))?;
                     let codec = Context::from_parameters(input_stream.parameters().to_owned())?;
                     let mut decoder = codec.decoder().video()?;
                     let input_stream_index = input_stream.index();
@@ -147,7 +147,7 @@ impl Thumbnail {
 
                     // we should have a scene frame now. let's modify and save!
                     Ok(scene_frame
-                        .ok_or(ThumbnailError::FfmpegNoSelectedFilter(media.path_str()))?
+                        .ok_or(ThumbnailError::FfmpegNoSelectedFilter(media.path.clone()))?
                         .data(0)
                         .to_vec())
                 })
@@ -163,7 +163,7 @@ impl Thumbnail {
         // all done! let's brag
         tracing::trace!(
             "successfully generated thumbnail for media file at `{}`!",
-            media_ext.path_str()
+            media_ext.path.clone()
         );
 
         todo!()
@@ -187,16 +187,16 @@ impl Thumbnail {
     pub async fn save_from_buffer(&self, buf: &[u8], media: &Media) -> Result<(), RavesError> {
         let thumbnail = {
             let img = image::load_from_memory(buf)
-                .map_err(|e| ThumbnailError::ImageParsingFailed(e, media.path_str()))?;
+                .map_err(|e| ThumbnailError::ImageParsingFailed(e, media.path.clone()))?;
 
             img.resize_to_fill(Self::SIZE, Self::SIZE, FilterType::Nearest)
         };
 
         let file = std::fs::File::create(self.path())
-            .map_err(|e| ThumbnailError::ThumbnailSaveFailure(e, self.path_str()))?;
+            .map_err(|e| ThumbnailError::ThumbnailSaveFailure(e, self.path.clone()))?;
         let mut writer = BufWriter::new(file);
 
-        let path_str = self.path_str();
+        let path_str = self.path.clone();
 
         // let's save it as blessed avif
         tokio::task::spawn_blocking(move || -> Result<(), ThumbnailError> {
@@ -232,5 +232,35 @@ impl Thumbnail {
             .await?;
 
         Ok(media)
+    }
+}
+
+impl Media {
+    /// Returns the thumbnail from the database for this media file.
+    #[tracing::instrument]
+    pub async fn get_thumbnail(&self, _id: &Uuid) -> Result<Thumbnail, RavesError> {
+        // see if we have a thumbnail in the database
+        if let Some(thumbnail) = self.database_get_thumbnail().await? {
+            return Ok(thumbnail);
+        }
+
+        // the file doesn't have one either! let's make one ;D
+        let thumbnail = Thumbnail::new(&self.id).await;
+        thumbnail.create().await?; // this makes the file
+        Ok(thumbnail)
+    }
+
+    /// Tries to grab the thumbnail from the database, if it's there.
+    #[tracing::instrument]
+    async fn database_get_thumbnail(&self) -> Result<Option<Thumbnail>, RavesError> {
+        let mut conn = DATABASE.acquire().await?;
+
+        let thumbnail =
+            sqlx::query_as::<_, Thumbnail>("SELECT * FROM thumbnail WHERE image_id = $1")
+                .bind(self.id.to_string())
+                .fetch_one(&mut *conn)
+                .await?;
+
+        Ok(Some(thumbnail))
     }
 }

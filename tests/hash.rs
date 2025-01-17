@@ -22,10 +22,9 @@ mod tests {
         tracing::info!("post beach_hash");
 
         // load media and grab its hash (to check if they're the same)
-        let beach_media =
-            Media::load_from_disk("tests/assets/beach_location_and_tagged.jpg".into())
-                .await
-                .expect("load media from disk");
+        let beach_media = Media::load("tests/assets/beach_location_and_tagged.jpg")
+            .await
+            .expect("load media from disk");
         tracing::info!("post beach_media");
 
         // hash the media
@@ -75,7 +74,7 @@ mod tests {
         ];
 
         // hash the file
-        let media = Media::new("tests/assets/fear.avif".into()).await.unwrap();
+        let media = Media::load("tests/assets/fear.avif").await.unwrap();
         let hash = media.hash().await.unwrap().0;
 
         assert_eq!(

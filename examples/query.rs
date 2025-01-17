@@ -7,6 +7,7 @@ use backdrop::{
         Media,
     },
 };
+use camino::Utf8PathBuf;
 
 #[tokio::main]
 async fn main() {
@@ -29,7 +30,7 @@ async fn main() {
             )
         })
         .filter(|m| {
-            m.path()
+            Utf8PathBuf::from(&m.path)
                 .file_name()
                 .unwrap_or_default()
                 .to_string()
