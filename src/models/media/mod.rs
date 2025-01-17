@@ -90,12 +90,61 @@ impl Media {
         self.path.clone().into()
     }
 
-    /// Updates this file's metadata in the database.
+    /// Updates this media file's metadata in the database.
+    #[tracing::instrument]
     pub async fn update_metadata(path: &Utf8Path) -> Result<(), RavesError> {
-        // TODO: optimize using CRC32 to check if we need to update?
-        // might require another table..?
+        let mut conn = DATABASE
+            .acquire()
+            .await
+            .inspect_err(|e| tracing::error!("Failed to get database connection! err: {e}"))?;
 
-        Self::load_from_disk(path).await.map(|_| ())
+        // canonicalize the path before doing anything.
+        //
+        // otherwise, we might have mismatches despite the backing data
+        // being the same!
+        let path = path
+            .canonicalize_utf8()
+            .inspect_err(|e| tracing::warn!("Failed to canon-ize path. err: {e}"))
+            .unwrap_or_else(|_| path.to_path_buf());
+
+        // check if there's a Media with this path in the db
+        let old_media_query = sqlx::query_as::<_, Media>("SELECT * FROM info WHERE path = $1")
+            .bind(path.to_string())
+            .fetch_optional(&mut *conn)
+            .await
+            .inspect_err(|e| {
+                tracing::warn!("Failed to query database for previous media! err: {e}")
+            })?;
+
+        // if so, we'll grab its Uuid and check if its hash is up-to-date!
+        //
+        // otherwise, we'll just load it without a second thought
+        if let Some(old_media) = old_media_query {
+            // if the hashes match, do an early return
+            let hash = old_media.hash().await?;
+            if hash.1 == HashUpToDate::UpToDate {
+                tracing::debug!("File hash is up-to-date! No need to update metadata.");
+                return Ok(());
+            }
+
+            // otherwise, we'll update the hash
+            //
+            // TODO: refactor these modules to have only `load` associated fn
+            // and free fns for the rest.
+            //
+            // this better allows for 'containing' hash updates to one place.
+            hash.0.add_to_table().await?;
+        }
+
+        // i was going to scan for files with different paths, but matching
+        // hashes.
+        //
+        // but here's a warning: that's a FOOTGUN!
+        //
+        // don't replace duplicate files' entries!
+
+        tracing::debug!("Metadata is out-of-date! Updating...");
+        Self::load_from_disk(path.as_ref()).await.map(|_| ())
     }
 
     /// Returns the thumbnail from the database for this media file.
