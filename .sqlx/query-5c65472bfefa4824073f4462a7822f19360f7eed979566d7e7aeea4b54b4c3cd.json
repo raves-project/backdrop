@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n            media_id as `media_id: Uuid`,\n            hash\n            FROM hashes\n            WHERE media_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "name": "media_id: Uuid",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "hash",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "5c65472bfefa4824073f4462a7822f19360f7eed979566d7e7aeea4b54b4c3cd"
+}
