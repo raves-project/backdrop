@@ -1,8 +1,12 @@
+use camino::Utf8Path;
+use sqlx::{query::Query, sqlite::SqliteArguments, Sqlite};
 use uuid::Uuid;
 
 use crate::{
     database::{InsertIntoTable, DATABASE},
+    error::{DatabaseError, HashError},
 };
+
 /// A hash for a media file, stored in the [`HASHES_TABLE`].
 #[derive(Clone, Debug, PartialEq, PartialOrd, Hash, sqlx::FromRow)]
 pub struct MediaHash {
@@ -12,6 +16,41 @@ pub struct MediaHash {
     pub hash: Vec<u8>,
 }
 
+impl MediaHash {
+    /// Creates a new [`MediaHash`] from the given required components.
+    ///
+    /// This will actually compute the hash of the file. Use struct
+    /// construction instead if you've already got it.
+    #[tracing::instrument]
+    pub async fn new<P: AsRef<Utf8Path> + core::fmt::Debug>(
+        media_id: Uuid,
+        path: P,
+    ) -> Result<Self, HashError> {
+        let path = path.as_ref();
+
+        let blake3_hash = Self::hash_file(path).await?;
+
+        Ok(Self {
+            hash: blake3_hash.as_bytes().into(),
+            media_id,
+        })
+    }
+
+    /// Hashes the file at the given path.
+    #[tracing::instrument]
+    pub async fn hash_file<P: AsRef<Utf8Path> + core::fmt::Debug>(
+        path: P,
+    ) -> Result<blake3::Hash, HashError> {
+        let path = path.as_ref();
+        let mut hasher = blake3::Hasher::new();
+
+        // read the file and get its hash
+        hasher
+            .update_mmap_rayon(path)
+            .inspect_err(|e| tracing::warn!("`blake3` file hashing failed! err: {e}"))
+            .map_err(|e| HashError::FileReadFailure(path.to_path_buf(), e))
+            .map(|hasher| hasher.finalize())
+    }
 
 impl InsertIntoTable for MediaHash {
     #[tracing::instrument]
