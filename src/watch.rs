@@ -118,12 +118,9 @@ impl Watch {
         };
 
         // actually perform the update
-        let try_update_metdata = Media::update_metadata(utf8_path).await;
-
-        // report error, if any
-        if let Err(e) = try_update_metdata {
-            tracing::error!("Failed to update metadata for file at `{path_str}`. See error: `{e}`");
-        }
+        let _media = Media::load(utf8_path).await.inspect_err(|e| {
+            tracing::error!("Failed to update metadata for file at `{path_str}`. See error: `{e}`")
+        });
 
         tracing::debug!("Completed file at `{path_str}`!");
     }

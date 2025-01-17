@@ -35,6 +35,12 @@ pub enum RavesError {
     #[error("The media file at `{path}` was expected to exist, but didn't.")]
     MediaDoesntExist { path: String },
 
+    #[error("Failed to open file at {path}. See: {error}")]
+    FailedToOpenMediaFile {
+        path: Utf8PathBuf,
+        error: std::io::Error,
+    },
+
     #[error("The media file at `{path}` does not appear to contain MIME (file type) data.")]
     NoMimeData { path: String },
 
