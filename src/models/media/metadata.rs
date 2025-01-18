@@ -67,7 +67,9 @@ impl Resolution {
 }
 
 /// A simple enum over the supported types of media.
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, serde::Serialize, serde::Deserialize,
+)]
 pub enum MediaKind {
     Photo,
     AnimatedPhoto,
@@ -123,7 +125,7 @@ impl Format {
     }
 
     pub fn media_kind(&self) -> MediaKind {
-        self.media_kind.clone()
+        self.media_kind
     }
 
     pub fn mime_type(&self) -> String {

@@ -4,7 +4,7 @@ use sqlx::types::Json;
 
 use crate::{
     error::RavesError,
-    models::media::metadata::{Format, MediaKind, SpecificMetadata},
+    models::media::metadata::{MediaKind, SpecificMetadata},
 };
 
 use super::MediaBuilder;
@@ -15,16 +15,12 @@ impl MediaBuilder {
     pub(super) async fn apply_avif(
         &mut self,
         path: impl AsRef<Utf8Path>,
-        format: Format,
+        media_kind: MediaKind,
     ) -> Result<(), RavesError> {
         tracing::debug!("Parsing media file metadata with `avif-parse`...");
 
         // cast path
         let path = path.as_ref();
-
-        // apply format
-        let media_kind = format.media_kind();
-        self.format = Some(Json(format));
 
         // grab data from avif.
         //
@@ -40,11 +36,14 @@ impl MediaBuilder {
         tracing::debug!("got resolution from `exif-parse`!");
 
         // specific
-        self.specific_metadata = Some(Json(match media_kind {
-            MediaKind::Photo => SpecificMetadata::Image {},
-            MediaKind::Video => panic!("gave avif parser video data!"),
+        self.specific_metadata = match media_kind {
+            MediaKind::Photo => Some(Json(SpecificMetadata::Image {})),
+            MediaKind::Video => {
+                tracing::warn!("AVIF parser should not be given video data.");
+                self.specific_metadata.take()
+            }
             MediaKind::AnimatedPhoto => unimplemented!(),
-        }));
+        };
 
         Ok(())
     }

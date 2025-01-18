@@ -8,10 +8,7 @@ use sqlx::types::Json;
 
 use crate::{
     error::RavesError,
-    models::media::{
-        builder::get_video_len,
-        metadata::{Format, MediaKind},
-    },
+    models::media::{builder::get_video_len, metadata::MediaKind},
 };
 
 use super::MediaBuilder;
@@ -22,10 +19,10 @@ impl MediaBuilder {
     pub(super) async fn apply_mp4parse(
         &mut self,
         path: &Utf8Path,
-        format: Format,
+        media_kind: MediaKind,
     ) -> Result<(), RavesError> {
         // check if it's a video
-        if format.media_kind() == MediaKind::Video {
+        if media_kind == MediaKind::Video {
             let mut f = std::fs::File::open(path).map_err(|e| RavesError::FileMetadataFailure {
                 path: path.to_string(),
                 err: e,
