@@ -10,13 +10,14 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::env::temp_dir;
+    use std::{env::temp_dir, str::FromStr as _};
 
     use backdrop::{
-        database::{self, DATABASE},
+        database::{self, DATABASE, RAVES_DB_FILE},
         models::media::{metadata::Format, Media},
     };
     use camino::{Utf8Path, Utf8PathBuf};
+    use sqlx::{sqlite::SqliteConnectOptions, Sqlite};
     use uuid::Uuid;
 
     /// The database can cache metadata for the beach photo.
@@ -69,5 +70,58 @@ mod tests {
             Format::new_from_mime("image/jpeg").unwrap(),
             "mime format"
         );
+    }
+
+    /// Ensures that migrations don't error, even when running them twice.
+    #[tokio::test]
+    async fn migrations() {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .init();
+
+        // this closure will make multiple pools using those migrations.
+        //
+        // we can run it several times and it should still not panic :D
+        let make_pool = |raves_db_folder: Utf8PathBuf| async move {
+            let options = SqliteConnectOptions::from_str(&format!(
+                "sqlite://{raves_db_folder}/{RAVES_DB_FILE}"
+            ))
+            .expect("database opts str")
+            .create_if_missing(true);
+
+            // connect to the pool
+            let pool = sqlx::Pool::<Sqlite>::connect_lazy_with(options);
+
+            // we'll also run migrations here real quick
+            sqlx::migrate!("./migrations")
+                .run(&pool)
+                .await
+                .expect("migrations");
+
+            // run them again!
+            sqlx::migrate!("./migrations")
+                .run(&pool)
+                .await
+                .expect("migrations twice");
+
+            // make a quick query to ensure things work
+            //
+            // (pool is lazy)
+            let mut conn = pool.acquire().await.expect("make db conn");
+            sqlx::query("SELECT * FROM info")
+                .execute(&mut *conn)
+                .await
+                .expect("running select");
+        };
+
+        for _ in 0..3 {
+            let mut set = tokio::task::JoinSet::new();
+
+            let tempdir = temp_dir();
+            let p = Utf8PathBuf::try_from(tempdir).unwrap();
+            set.spawn(make_pool(p));
+
+            set.join_all().await;
+        }
     }
 }

@@ -12,6 +12,9 @@ use sqlx::{
     Pool, Sqlite,
 };
 
+/// The filename of the Raves database.
+pub const RAVES_DB_FILE: &str = "raves.sqlite";
+
 pub const HASHES_TABLE: &str = "hashes";
 pub const INFO_TABLE: &str = "info";
 pub const THUMBNAILS_TABLE: &str = "thumbnail";
@@ -26,7 +29,9 @@ pub static DB_FOLDER_PATH: OnceLock<Utf8PathBuf> = OnceLock::new();
 /// You MUST set the [`DB_FOLDER_PATH`] before attempting to access this.
 /// Otherwise, the backend will panic!
 pub static DATABASE: LazyLock<Pool<Sqlite>> = LazyLock::new(|| {
-    const RAVES_DB_FILE: &str = "raves.sqlite";
+    // WARNING!!!
+    //
+    // if you change something here, please update the `migrations` test in `tests/db.rs`.
 
     // try to get the folder path (hoping the user has set the OnceLock static)
     let Some(raves_db_folder) = DB_FOLDER_PATH.get() else {
