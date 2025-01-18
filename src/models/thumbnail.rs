@@ -31,19 +31,19 @@ pub struct Thumbnail {
     path: String,
 
     /// the id of the original media file in the database.
-    image_id: Uuid,
+    media_id: Uuid,
 }
 
 impl Thumbnail {
     const SIZE: u32 = 512;
 
     /// Creates a new thumbnail representation given an image ID.
-    pub async fn new(image_id: &Uuid) -> Self {
+    pub async fn new(media_id: &Uuid) -> Self {
         // note: the path to a thumbnail is static from its id.
-        let path = Self::make_path(image_id).await;
+        let path = Self::make_path(media_id).await;
         Self {
             path: path.to_string(),
-            image_id: *image_id,
+            media_id: *media_id,
         }
     }
 
@@ -180,8 +180,8 @@ impl Thumbnail {
     }
 
     /// Grabs the ID of the original media file.
-    pub fn image_id(&self) -> &Uuid {
-        &self.image_id
+    pub fn media_id(&self) -> &Uuid {
+        &self.media_id
     }
 
     pub async fn save_from_buffer(&self, buf: &[u8], media: &Media) -> Result<(), RavesError> {
@@ -211,9 +211,9 @@ impl Thumbnail {
 }
 
 impl Thumbnail {
-    /// Makes a unique thumbnail path from an image's unique ID.
-    async fn make_path(image_id: &Uuid) -> Utf8PathBuf {
-        let filename = Utf8PathBuf::from(format!("{image_id}.thumbnail"));
+    /// Makes a unique thumbnail path from an media file's unique ID.
+    async fn make_path(media_id: &Uuid) -> Utf8PathBuf {
+        let filename = Utf8PathBuf::from(format!("{media_id}.thumbnail"));
         Config::read()
             .await
             .cache_dir
@@ -227,7 +227,7 @@ impl Thumbnail {
         let mut conn = DATABASE.acquire().await?;
 
         let media = sqlx::query_as::<_, Media>("SELECT * FROM info WHERE id = $1")
-            .bind(self.image_id)
+            .bind(self.media_id)
             .fetch_one(&mut *conn)
             .await?;
 
@@ -256,7 +256,7 @@ impl Media {
         let mut conn = DATABASE.acquire().await?;
 
         let thumbnail =
-            sqlx::query_as::<_, Thumbnail>("SELECT * FROM thumbnail WHERE image_id = $1")
+            sqlx::query_as::<_, Thumbnail>("SELECT * FROM thumbnail WHERE media_id = $1")
                 .bind(self.id.to_string())
                 .fetch_one(&mut *conn)
                 .await?;
