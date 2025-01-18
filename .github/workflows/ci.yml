@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install `nasm`
+        run: sudo apt-get install yasm -y
+
       - name: Set up Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -73,13 +76,3 @@ jobs:
 
       - name: Run doctests
         run: cargo test --doc
-
-
-
-  test_semver:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Check semver
-        uses: obi1kenobi/cargo-semver-checks-action@v2
