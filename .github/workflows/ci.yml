@@ -15,7 +15,6 @@ jobs:
       matrix:
         toolchain:
           - stable
-          - beta
       fail-fast: false
 
     steps:
