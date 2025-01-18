@@ -67,8 +67,7 @@ features = ["build"]
 
 [dev-dependencies]
 async-ctrlc = "1.2.0"
-clap = { version = "4.5.17", features = ["derive"] }
 tracing-subscriber = "0.3.18"
-dirs = "5.0.1"
+dirs = "6.0.0"
 anyhow = "1.0.95"
 console-subscriber = "0.4.1"
