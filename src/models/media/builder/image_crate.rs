@@ -9,10 +9,7 @@ use sqlx::types::Json;
 
 use crate::{
     error::RavesError,
-    models::media::{
-        builder::get_video_len,
-        metadata::{Format, MediaKind, SpecificMetadata},
-    },
+    models::media::metadata::{MediaKind, SpecificMetadata},
 };
 
 use super::MediaBuilder;
@@ -23,16 +20,12 @@ impl MediaBuilder {
     pub(super) async fn apply_image(
         &mut self,
         path: &Utf8Path,
-        format: Format,
+        media_kind: MediaKind,
     ) -> Result<(), RavesError> {
         // read the image into a buffer and grab its dimensions
         let img = image::open(path).map_err(|e| RavesError::ImageError(path.to_string(), e))?;
         let (width, height) = img.dimensions();
         tracing::debug!("got image dimensions from image crate: {width}x{height}");
-
-        // apply format
-        let media_kind = format.media_kind();
-        self.format = Some(Json(format));
 
         // resolution
         self.width_px = Some(width);
@@ -40,14 +33,9 @@ impl MediaBuilder {
         tracing::debug!("got resolution from image!");
 
         // specific
-        self.specific_metadata = Some(Json(match media_kind {
-            MediaKind::Photo => SpecificMetadata::Image {},
-            MediaKind::Video => {
-                tracing::warn!("video detected, but the image crate doesn't handle videos!");
-                get_video_len(path)?
-            }
-            MediaKind::AnimatedPhoto => unimplemented!(),
-        }));
+        if media_kind == MediaKind::Photo {
+            self.specific_metadata = Some(Json(SpecificMetadata::Image {}))
+        }
 
         Ok(())
     }

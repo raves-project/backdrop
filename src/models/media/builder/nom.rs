@@ -2,13 +2,12 @@ use camino::Utf8Path;
 use nom_exif::{parse_exif_async, Exif as NomExif, ExifIter, ExifTag};
 use sqlx::types::Json;
 use tokio::task::spawn_blocking;
-use tokio::try_join;
 
 use crate::{
     error::RavesError,
     models::media::{
         builder::get_video_len,
-        metadata::{Format, MediaKind, OtherMetadataMap, OtherMetadataValue, SpecificMetadata},
+        metadata::{MediaKind, OtherMetadataMap, OtherMetadataValue, SpecificMetadata},
     },
 };
 
@@ -20,16 +19,11 @@ impl MediaBuilder {
     pub(super) async fn apply_nom_exif(
         &mut self,
         path: &Utf8Path,
-        format: Format,
+        media_kind: MediaKind,
     ) -> Result<(), RavesError> {
         tracing::debug!("grabbing exif data...");
-        let (_, (iter, exif)) = try_join! {
-            self.file(path),
-            fut(path),
-        }?;
+        let (iter, exif) = fut(path).await?;
         tracing::debug!("got exif data!");
-
-        let media_kind = format.media_kind();
 
         // look for cool shit in the exif
         // res

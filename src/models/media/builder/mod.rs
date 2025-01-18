@@ -6,23 +6,20 @@
 //! with full support for all these types!
 
 pub mod avif;
+pub mod generic;
 pub mod image_crate;
 pub mod kamadak;
 pub mod matroska;
 pub mod mp4parse;
 pub mod nom;
 
-use std::os::unix::fs::MetadataExt;
-
-use camino::{Utf8Path, Utf8PathBuf};
+use camino::Utf8Path;
 use chrono::{DateTime, Utc};
-use infer::{video::*, Type};
 use sqlx::types::Json;
-use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 
 use crate::{
-    database::{DATABASE, INFO_TABLE},
+    database::{DATABASE, HASHES_TABLE, INFO_TABLE},
     error::RavesError,
     models::{
         media::{metadata::MediaKind, Media},
@@ -30,16 +27,16 @@ use crate::{
     },
 };
 
-use super::metadata::{Format, OtherMetadataMap, SpecificMetadata};
+use super::{
+    hash::MediaHash,
+    metadata::{Format, OtherMetadataMap, SpecificMetadata},
+};
 
 /// A media file's metadata. Common metadata is always present, while the `other`
 /// field represents that which isn't standard in a dictionary (string, string)
 /// form.
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct MediaBuilder {
-    /// The last known file path for this media file.
-    pub path: Option<String>,
-
     /// How large the file is, in bytes.
     pub filesize: Option<i64>,
 
@@ -79,185 +76,110 @@ pub struct MediaBuilder {
 }
 
 impl MediaBuilder {
-    /// Returns metadata found from a file.
-    #[tracing::instrument]
-    pub async fn apply<P>(mut self, path: P) -> Result<Media, RavesError>
-    where
-        P: AsRef<Utf8Path> + std::fmt::Debug,
-    {
-        // follow the path
-        let path = path
-            .as_ref()
-            .canonicalize_utf8()
-            .inspect_err(|e| {
-                tracing::warn!(
-                    "MediaBuilder failed to canonicalize the path. This might result in a 'ghost entry'. err: {e}"
-                );
-            })
-            .unwrap_or_else(|_| path.as_ref().into());
-
-        // get the format
-        tracing::debug!("grabbing format...");
-        let (format, _inferred) = Self::format(&path).await?;
-
-        // apply format
-        tracing::debug!("applying format...");
-        let media_kind = format.media_kind();
-        self.format = Some(Json(format.clone()));
-
-        tracing::debug!("applying metadata...");
-        match media_kind {
-            MediaKind::Photo => {
-                // first, if we think it's an avif file, use the `avif-parse` crate!
-                if format.mime_type().to_lowercase().contains("avif") {
-                    let _avif = self.apply_avif(&path, format.clone()).await;
-                }
-
-                // kamadak-exif has a lot of photo formats
-                let _kamadak = self.apply_kamadak_exif(&path, format.clone()).await;
-
-                // fallback to image crate
-                let _image = self.apply_image(&path, format).await;
-
-                return self.build().await;
-            }
-            MediaKind::Video => {
-                // nom_exif supports mp4 and mov.
-                // TODO: other crates for more formats?
-                let nom = self.apply_nom_exif(&path, format.clone()).await;
-                if nom.is_ok() {
-                    return self.build().await;
-                }
-
-                tracing::warn!("couldn't get metadata from nom_exif. using video fallbacks...");
-
-                // let's read the first 38 bytes of the file.
-                // that lets us check the actual container type
-                let mut buf = [0; 38];
-                tokio::fs::File::open(&path)
-                    .await
-                    .map_err(|e| RavesError::FileMetadataFailure {
-                        path: path.to_string(),
-                        err: e,
-                    })?
-                    .read_exact(&mut buf)
-                    .await
-                    .map_err(|e| RavesError::FileMetadataFailure {
-                        path: path.to_string(),
-                        err: e,
-                    })?;
-
-                // use generic crates for exif-less containers
-                if is_mp4(&buf) {
-                    tracing::warn!("detected mp4 container. using mp4parse...");
-                    self.apply_mp4parse(&path, format).await?;
-                } else if is_mov(&buf) || is_mkv(&buf) || is_webm(&buf) {
-                    tracing::warn!("detected matroska container. using matroska crate...");
-                    self.apply_matroska(&path, format).await?;
-                } else {
-                    tracing::error!(
-                        "an unsupported video container was detected. trying ffmpeg..."
-                    );
-                    unimplemented!()
-                }
-            }
-            MediaKind::AnimatedPhoto => unimplemented!(),
-        };
-
-        tracing::debug!("finished applying metadata!");
-        self.build().await
-    }
-}
-
-// private methods
-impl MediaBuilder {
-    /// Adds typical file attributes to `self`.
+    /// Constructs a [`Media`] file representation from this [`MediaBuilder`].
     #[tracing::instrument(skip(self))]
-    async fn file(&mut self, path: &Utf8Path) -> Result<(), RavesError> {
-        let path_str = path.to_string();
-
-        // err if the file doesn't open
-        let metadata = tokio::fs::metadata(path)
-            .await
-            .inspect_err(|e| tracing::warn!("Failed to open file for metadata. err: {e}"))
-            .map_err(|_e| RavesError::MediaDoesntExist { path: path_str })?;
-        tracing::debug!("got file metadata!");
-
-        self.path = Some(path.to_string());
-        self.filesize = Some(metadata.size() as i64);
-        self.creation_date = metadata.created().ok().map(|st| st.into());
-        self.modification_date = metadata.modified().ok().map(|st| st.into());
-        tracing::debug!("added file metadata to builder!");
-
-        Ok(())
+    pub(super) async fn build<P: AsRef<Utf8Path> + std::fmt::Debug>(
+        self,
+        path: P,
+    ) -> Result<Media, RavesError> {
+        let path = path.as_ref();
+        self.build_internal(path).await
     }
 
-    /// Grabs the format of the media file at `path`.
-    #[tracing::instrument]
-    async fn format(path: &Utf8Path) -> Result<(Format, Type), RavesError> {
-        let path_str = path.to_string();
-
-        tracing::debug!("grabbing format...");
-        let mime = infer::get_from_path(path)
-            .map_err(|_e| RavesError::MediaDoesntExist {
-                path: path_str.clone(),
-            })?
-            .ok_or(RavesError::NoMimeData {
-                path: path_str.clone(),
-            })?;
-
-        // aaaand make the format
-        tracing::debug!("creating mime type for media file...");
-
-        Ok((
-            Format::new_from_mime(mime.mime_type())
-                .ok_or(RavesError::FileNotSupportedMedia {
-                    path: path_str.clone(),
-                })
-                .inspect_err(|e| tracing::error!("Failed to create MIME type! err: {e}"))?,
-            mime,
-        ))
-    }
-
-    /// Builds the metadata from the data gathered.
+    /// The internal 'build' function to create a [`Media`] from [`MediaBuilder`].
+    /// This should only be called from [`MediaBuilder::build`].
     ///
-    /// This will return a None if no file metadata could be gathered.
+    /// NOTE: `path` **must** be an absolute path that's been canonicalized.
+    ///
+    /// It has the following pipeline:
+    ///
+    /// 1. Grab format of `path`.
+    /// 2. Apply it to self, but match on the contained `MediaKind` to better
+    ///    determine next steps.
+    /// 3. Based on our MediaKind...
+    ///     - If we're a photo or animated photo,
+    ///         - AVIF only: apply `avif_parse` crate
+    ///         - TIFF/JPEG/HEIF/PNG/WebP: apply `kamadak_exif` crate
+    ///         - anything: apply `image` crate
+    ///     - If we're a video,
+    ///         - MP4/MOV only: apply `nom_exif` crate
+    ///         - MP4 only: apply `mp4parse` crate
+    ///         - MOV/MKV/WebM: apply `matroska` crate
+    /// 4. Check for a previous cache of the media.
+    /// 5. If present, steal its UUID and first-seen datetime.
+    /// 6. Unwrap all fields and stick into a new `Media`.
+    /// 7. Return it.
     #[tracing::instrument(skip(self))]
-    async fn build(self) -> Result<Media, RavesError> {
-        let utf8_path = Utf8PathBuf::from(self.path.ok_or(RavesError::FileMissingMetadata(
-            "... no path".into(),
-            "no path given".into(),
-        ))?);
+    async fn build_internal(mut self, path: &Utf8Path) -> Result<Media, RavesError> {
+        // grab format and apply it to self
+        let format = format(path).await?;
+        let mime_type = format.mime_type();
+        let media_kind = format.media_kind();
+        self.format = Some(Json(format));
 
-        let path =  utf8_path.canonicalize_utf8().inspect_err(|e| {
-            tracing::warn!(
-                "MediaBuilder failed to canonicalize the path. This might result in a 'ghost entry'. err: {e}"
-            );
-        })
-        .unwrap_or(utf8_path);
+        // grab file metadata real quick
+        _ = self
+            .file(path)
+            .await
+            .inspect_err(|e| tracing::warn!("Failed to get file metadata! err: {e}"));
 
-        // if the media was previously saved in the database, we'll need to use
-        // its id and 'first seen date'
-        let (id, first_seen_date) = {
-            let mut conn = DATABASE.acquire().await.inspect_err(|e| {
-                tracing::error!("Failed to connect to database in metadata builder! err: {e}")
-            })?;
+        // based on the 'kind' of media we're dealing with, we'll choose different
+        // libraries to apply to internal metadata
+        match &media_kind {
+            MediaKind::Photo | MediaKind::AnimatedPhoto => {
+                // if we're avif, apply the avif crate
+                let avif_result = if mime_type.to_lowercase().contains("avif") {
+                    self.apply_avif(path, media_kind)
+                        .await
+                        .map_err(|e| tracing::warn!("Failed to parse with `avif_parse`. err: {e}"))
+                } else {
+                    Err(())
+                };
 
-            // TODO: when we start doing file hashes, we can check that too.
-            // (the path is somewhat likely to change over time, but not hash!)
-            let old_media_query =
-                sqlx::query_as::<_, Media>(&format!("SELECT * FROM {INFO_TABLE} WHERE path = $1"))
-                    .bind(path.to_string())
-                    .fetch_optional(&mut *conn)
+                // really this is only for tiff/jpeg/heif/png/webp, but we can
+                // parse everything since there's a lot of other not-well-known
+                // file types between all those
+                let kamadak_result = self
+                    .apply_kamadak_exif(path, media_kind)
                     .await
-                    .inspect_err(|e| tracing::error!("Failed to query database! err: {e}"))?;
+                    .map_err(|e| tracing::debug!("Failed to aprse with `kamadak_exif`. err: {e}"));
 
-            if let Some(old_media) = old_media_query {
-                (old_media.id, old_media.first_seen_date)
-            } else {
-                (Uuid::new_v4(), Utc::now())
+                // finally, use the `image` crate when we're out of luck :p
+                if avif_result.is_err() && kamadak_result.is_err() {
+                    _ = self
+                        .apply_image(path, media_kind)
+                        .await
+                        .map_err(|e| tracing::error!("Failed to parse with `image`! err: {e}"));
+                }
             }
-        };
+
+            MediaKind::Video => {
+                // ffmpeg: get video length
+                let specific_metadata = get_video_len(path)
+                    .inspect_err(|e| tracing::error!("Failed to get video length. err: {e}"))?;
+
+                self.specific_metadata = Some(Json(specific_metadata));
+
+                // apply `mp4`
+                _ = self.apply_mp4parse(path, media_kind).await.map_err(|e| {
+                    tracing::debug!("Failed to parse with `mp4parse`. err: {e}");
+                });
+
+                // apply `matroska`
+                _ = self.apply_matroska(path, media_kind).await.map_err(|e| {
+                    tracing::debug!("Failed to parse with `matroska`. err: {e}");
+                });
+
+                // apply `nom_exif`
+                _ = self.apply_nom_exif(path, media_kind).await;
+            }
+        }
+
+        // grab the static fields
+        let StaticFields {
+            id,
+            first_seen_date,
+        } = get_static_fields(path).await?;
 
         Ok(Media {
             id,
@@ -297,10 +219,88 @@ impl MediaBuilder {
     }
 }
 
+/// Grabs the format of the media file at `path`.
+#[tracing::instrument]
+async fn format(path: &Utf8Path) -> Result<Format, RavesError> {
+    let path_str = path.to_string();
+
+    // infer the MIME type for the file
+    tracing::debug!("Grabbing MIME type...");
+    let mime = infer::get_from_path(path)
+        .map_err(|_e| RavesError::MediaDoesntExist {
+            path: path_str.clone(),
+        })?
+        .ok_or(RavesError::NoMimeData {
+            path: path_str.clone(),
+        })?;
+
+    // make the format
+    tracing::debug!("Creating format from MIME...");
+    let format = Format::new_from_mime(mime.mime_type())
+        .ok_or(RavesError::FileNotSupportedMedia {
+            path: path_str.clone(),
+        })
+        .inspect_err(|e| tracing::error!("Failed to create MIME type! err: {e}"))?;
+
+    Ok(format)
+}
+
+/// Either steals or creates the static fields required to create a [`Media`].
+#[tracing::instrument]
+async fn get_static_fields(path: &Utf8Path) -> Result<StaticFields, RavesError> {
+    // if the media was previously saved in the database, we'll need to use
+    // its id and 'first seen date'
+    let (id, first_seen_date) = 'a: {
+        let mut conn = DATABASE.acquire().await.inspect_err(|e| {
+            tracing::error!("Failed to connect to database in metadata builder! err: {e}")
+        })?;
+
+        // if we find our path in there, we can just use the old stuff
+        let old_media_path_query =
+            sqlx::query_as::<_, Media>(&format!("SELECT * FROM {INFO_TABLE} WHERE path = $1"))
+                .bind(path.to_string())
+                .fetch_optional(&mut *conn)
+                .await
+                .inspect_err(|e| tracing::error!("(path) Failed to query database! err: {e}"))?;
+
+        if let Some(old_media) = old_media_path_query {
+            break 'a (old_media.id, old_media.first_seen_date);
+        }
+
+        // we can also check for duplicate photos, as that's fair game for
+        // 'first seen', though we'll also need to create a new UUID.
+        if let Ok(hash) = MediaHash::hash_file(path).await {
+            let old_media_hash_query = sqlx::query_as::<_, Media>(&format!(
+                "SELECT * FROM {HASHES_TABLE} WHERE hash = $1"
+            ))
+            .bind(hash.as_bytes().to_vec())
+            .fetch_optional(&mut *conn)
+            .await
+            .inspect_err(|e| tracing::error!("(hash) Failed to query database! err: {e}"))?;
+
+            if let Some(old_media) = old_media_hash_query {
+                break 'a (Uuid::new_v4(), old_media.first_seen_date);
+            }
+        }
+
+        (Uuid::new_v4(), Utc::now())
+    };
+
+    Ok(StaticFields {
+        id,
+        first_seen_date,
+    })
+}
+
+/// Fields that don't change across metadata generations.
+struct StaticFields {
+    id: Uuid,
+    first_seen_date: DateTime<Utc>,
+}
+
 impl Default for MediaBuilder {
     fn default() -> Self {
         Self {
-            path: None,
             filesize: None,
             format: None,
             creation_date: None,
@@ -374,7 +374,7 @@ mod tests {
         // add a fake file to it
         let old_media = Media {
             id: Uuid::nil(),
-            path: path.into(),
+            path: path.to_string(),
             filesize: 0,
             format: Json(Format::new_from_mime("image/avif").unwrap()),
             creation_date: None,
@@ -396,10 +396,7 @@ mod tests {
             .unwrap();
 
         // now run the media builder on a real file...
-        let new_media = MediaBuilder::default()
-            .apply("tests/assets/fear.avif")
-            .await
-            .unwrap();
+        let new_media = MediaBuilder::default().build(&path).await.unwrap();
 
         assert_eq!(old_media.id, new_media.id, "same uuids");
         assert_eq!(

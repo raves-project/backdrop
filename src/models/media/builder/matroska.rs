@@ -5,7 +5,7 @@
 
 use crate::{
     error::RavesError,
-    models::media::metadata::{Format, MediaKind, SpecificMetadata},
+    models::media::metadata::{MediaKind, SpecificMetadata},
 };
 
 use camino::Utf8Path;
@@ -20,9 +20,9 @@ impl MediaBuilder {
     pub(super) async fn apply_matroska(
         &mut self,
         path: &Utf8Path,
-        format: Format,
+        media_kind: MediaKind,
     ) -> Result<(), RavesError> {
-        if format.media_kind() == MediaKind::Video {
+        if media_kind == MediaKind::Video {
             let mkv =
                 matroska::open(path).map_err(|e| RavesError::MatroskaError(path.to_string(), e))?;
 

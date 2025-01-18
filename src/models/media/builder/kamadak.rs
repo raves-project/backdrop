@@ -1,14 +1,10 @@
 use camino::Utf8Path;
 use kamadak_exif::{Exif as KamadakExif, In, Tag};
 use sqlx::types::Json;
-use tokio::try_join;
 
 use crate::{
     error::RavesError,
-    models::media::{
-        builder::get_video_len,
-        metadata::{Format, MediaKind, OtherMetadataMap, OtherMetadataValue, SpecificMetadata},
-    },
+    models::media::metadata::{MediaKind, OtherMetadataMap, OtherMetadataValue, SpecificMetadata},
 };
 
 use super::MediaBuilder;
@@ -19,12 +15,9 @@ impl MediaBuilder {
     pub(super) async fn apply_kamadak_exif(
         &mut self,
         path: &Utf8Path,
-        format: Format,
+        media_kind: MediaKind,
     ) -> Result<(), RavesError> {
-        let (_, exif) = try_join! {
-            self.file(path),
-            look(path),
-        }?;
+        let exif = look(path).await?;
         tracing::debug!("got exif data from kamadak-exif!");
 
         let p = In::PRIMARY;
@@ -55,12 +48,10 @@ impl MediaBuilder {
         tracing::debug!("got resolution from exif!");
 
         // specific
-        self.specific_metadata = Some(Json(match format.media_kind() {
-            MediaKind::Photo => SpecificMetadata::Image {},
-            MediaKind::Video => get_video_len(path)?,
-            MediaKind::AnimatedPhoto => unimplemented!(),
-        }));
-        tracing::debug!("got specific metadata from exif!");
+        if media_kind == MediaKind::Photo {
+            self.specific_metadata = Some(Json(SpecificMetadata::Image {}));
+            tracing::debug!("got specific metadata from exif!");
+        }
 
         // other
         let mut mapped = OtherMetadataMap::new();

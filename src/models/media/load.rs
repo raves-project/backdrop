@@ -153,7 +153,7 @@ async fn from_database(path: &Utf8Path) -> Result<Option<Media>, RavesError> {
 async fn from_disk(path: &Utf8Path) -> Result<Media, RavesError> {
     // grab the media file metadata
     tracing::trace!("Feeding media file path to MediaBuilder...");
-    let media = MediaBuilder::default().apply(path).await?;
+    let media = MediaBuilder::default().build(path).await?;
 
     // cache in database
     {
