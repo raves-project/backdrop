@@ -12,10 +12,6 @@ async-watcher = "0.3.0"
 tracing = "0.1.40"
 async-walkdir = "2.0.0"
 rand = "0.8.5"
-# flutter_rust_bridge = "2.3.0"                                        # note: this is to specify acceptable inputs for flutter ffi
-
-# kinda unused rn
-jiff = { version = "0.1.13", features = ["serde"] }
 
 # async
 tokio = { version = "1.40", features = ["macros", "rt-multi-thread"] }

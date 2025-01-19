@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 use crate::models::media::metadata::Framerate;
 
-use jiff::Zoned;
+use chrono::{DateTime, Utc};
 
 /// the location of media
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -16,10 +16,9 @@ pub struct PathDetail(pub PathBuf);
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum DateDetail {
     // TODO: allow dates, times, or both. for now, assume manual conversion
-    Created(Zoned),
-    Modified(Zoned),
-    Accessed(Zoned),
-    FirstSeen(Zoned),
+    Created(DateTime<Utc>),
+    Modified(DateTime<Utc>),
+    FirstSeen(DateTime<Utc>),
 }
 
 /// "webm", "avif", etc.
