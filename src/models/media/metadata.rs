@@ -13,7 +13,12 @@ pub enum SpecificMetadata {
     },
 
     #[non_exhaustive]
-    Video { length: f64 },
+    Video {
+        /// The video's length in seconds.
+        length: f64,
+        // TODO: framerate (see below)
+        // framerate: Framerate,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
