@@ -57,9 +57,11 @@ pub struct FramerateDetail(pub Framerate);
 /// - has Person tag with marker tag
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum TagDetail {
-    TagName(String),
-    PersonTagName(String),
+    TagUuid(String),
+    PersonTagUuid(String),
     PersonTagWithMarker(String, String),
+
+    /// The number of tags on a media file.
     Count(u8, Comparison),
 }
 
