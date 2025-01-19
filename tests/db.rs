@@ -10,7 +10,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::{env::temp_dir, str::FromStr as _};
+    use std::str::FromStr as _;
 
     use backdrop::{
         database::{self, DATABASE, RAVES_DB_FILE},
@@ -18,14 +18,16 @@ mod tests {
     };
     use camino::{Utf8Path, Utf8PathBuf};
     use sqlx::{sqlite::SqliteConnectOptions, Sqlite};
+    use temp_dir::TempDir;
     use uuid::Uuid;
 
     /// The database can cache metadata for the beach photo.
     #[tokio::test]
     async fn beach() {
         // set up the database
+        let temp_dir = temp_dir::TempDir::new().unwrap();
         {
-            let db_temp_dir = Utf8PathBuf::try_from(temp_dir())
+            let db_temp_dir = Utf8PathBuf::try_from(temp_dir.path().to_path_buf())
                 .unwrap()
                 .join(Uuid::new_v4().to_string())
                 .join("_raves_db");
@@ -117,11 +119,11 @@ mod tests {
         for _ in 0..3 {
             let mut set = tokio::task::JoinSet::new();
 
-            let tempdir = temp_dir();
-            let p = Utf8PathBuf::try_from(tempdir).unwrap();
+            let temp_dir = TempDir::new().unwrap();
+            let p = Utf8PathBuf::try_from(temp_dir.path().to_path_buf()).unwrap();
             set.spawn(make_pool(p));
 
-            set.join_all().await;
+            set.join_all().await; // FIXME
         }
     }
 }

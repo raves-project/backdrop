@@ -342,7 +342,7 @@ pub fn get_video_len(path: &Utf8Path) -> Result<SpecificMetadata, RavesError> {
 
 #[cfg(test)]
 mod tests {
-    use std::env::temp_dir;
+    use temp_dir::TempDir;
 
     use camino::Utf8PathBuf;
     use chrono::{DateTime, Utc};
@@ -362,9 +362,10 @@ mod tests {
     /// The `MediaBuilder` should keep the `id` and `first_seen_date` fields as-is.
     #[tokio::test]
     async fn media_builder_keeps_static_fields() {
+        let temp_dir = TempDir::new().unwrap();
         // set up the db
         database::DB_FOLDER_PATH
-            .set(Utf8PathBuf::try_from(temp_dir()).unwrap())
+            .set(Utf8PathBuf::try_from(temp_dir.path().to_path_buf()).unwrap())
             .unwrap();
 
         let path = Utf8PathBuf::from("tests/assets/fear.avif")

@@ -4,7 +4,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::{env::temp_dir, time::Duration};
+    use std::time::Duration;
 
     use backdrop::{
         database::{DATABASE, INFO_TABLE},
@@ -13,6 +13,7 @@ mod tests {
     };
 
     use camino::Utf8PathBuf;
+    use temp_dir::TempDir;
     use uuid::Uuid;
 
     use crate::common::{self, Setup};
@@ -41,16 +42,15 @@ mod tests {
     #[tokio::test]
     async fn find_file_in_temp_dir() {
         // generate a temp dir
-        let temp_dir = Utf8PathBuf::try_from(temp_dir())
-            .unwrap()
-            .join(Uuid::new_v4().to_string());
-        println!("temp dir located at: `{temp_dir}`");
+        let temp_dir = TempDir::new().unwrap();
+        let temp_dir_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf()).unwrap();
+        println!("temp dir located at: `{temp_dir_path}`");
         tokio::fs::create_dir_all(&temp_dir).await.unwrap();
 
         // set up the app
         common::setup(Setup {
             port: 6670,
-            watched_folders: [temp_dir.clone()].into(),
+            watched_folders: [temp_dir_path.clone()].into(),
         })
         .await;
         let mut conn = DATABASE.acquire().await.unwrap();
@@ -66,7 +66,7 @@ mod tests {
 
         // copy a photo to the temp dir
         tokio::time::sleep(Duration::from_secs(3)).await;
-        tokio::fs::copy("tests/assets/fear.avif", temp_dir.join("fear.avif"))
+        tokio::fs::copy("tests/assets/fear.avif", temp_dir_path.join("fear.avif"))
             .await
             .expect("copy to temp dir should work");
 
