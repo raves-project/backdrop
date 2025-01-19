@@ -77,7 +77,10 @@ impl ToQuery for CollectionModifier {
             CollectionModifier::Album(_album_uuid) => todo!(),
 
             // ez pz, just add a 'LIKE' clause with `.like(<lit>)`
-            CollectionModifier::Literal(lit) => Expr::col(Info::Path).like(lit),
+            CollectionModifier::Literal(lit) => {
+                tracing::debug!("Checking for literal: `{lit}`");
+                Expr::col(Info::Path).like(format!("%{lit}%"))
+            }
 
             // yeah that's not bad. might be difficult to express dates in the
             // orm-ish syntax, though?
