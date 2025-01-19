@@ -123,7 +123,7 @@ impl ToQuery for CollectionModifier {
                         tracing::debug!("Looking at format's MIME type. given: `{mime_type}`");
 
                         Expr::col(Info::Format)
-                            .get_json_field("mime_type")
+                            .cast_json_field("mime_type")
                             .like(mime_type)
                     }
 
@@ -154,7 +154,7 @@ impl ToQuery for CollectionModifier {
 
                 // we'll use json for this
                 Expr::col(Info::Format)
-                    .get_json_field("media_kind")
+                    .cast_json_field("media_kind")
                     .eq(MediaKind::from(kind_detail.clone()).to_string())
             }
 
