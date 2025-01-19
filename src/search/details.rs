@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use crate::models::media::metadata::Framerate;
+use crate::models::media::metadata::{Framerate, MediaKind};
 
 use chrono::{DateTime, Utc};
 
@@ -31,8 +31,19 @@ pub enum FormatDetail {
 /// "video", "image", etc.
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum KindDetail {
-    Image,
+    Photo,
+    AnimatedPhoto,
     Video,
+}
+
+impl From<KindDetail> for MediaKind {
+    fn from(value: KindDetail) -> Self {
+        match value {
+            KindDetail::Photo => Self::Photo,
+            KindDetail::AnimatedPhoto => Self::AnimatedPhoto,
+            KindDetail::Video => Self::Video,
+        }
+    }
 }
 
 /// fps of a video
