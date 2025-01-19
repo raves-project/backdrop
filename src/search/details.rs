@@ -74,6 +74,20 @@ pub enum Comparison {
     Greater,
 }
 
+impl core::fmt::Display for Comparison {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let cmp = match self {
+            Self::Less => "<",
+            Self::LessOrEqual => "<=",
+            Self::Equal => "=",
+            Self::GreaterOrEqual => ">=",
+            Self::Greater => ">",
+        };
+
+        f.write_str(cmp)
+    }
+}
+
 /// "landscape", "portrait", "square"
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum OrientationDetail {
