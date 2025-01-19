@@ -2,8 +2,6 @@
 
 use uuid::Uuid;
 
-pub type TagIdent = String;
-
 /// A "section" for tags. When a tag has a section, it is separated from others
 /// by extreme differences.
 ///
@@ -15,13 +13,15 @@ pub type TagIdent = String;
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Deserialize, serde::Serialize)]
 pub struct TagSection {
     name: String,
+    id: Uuid,
 }
 
 impl Default for TagSection {
     /// Creates THE default `TagSection`, simply titled "default".
     fn default() -> Self {
         Self {
-            name: String::from("default"),
+            name: String::from("Default"),
+            id: Uuid::nil(),
         }
     }
 }
@@ -32,16 +32,16 @@ pub struct Tag {
     ///
     /// Don't use this to find the tag - EVER.
     /// The name can change, but a tag's UUID is forever static.
-    name: String,
+    pub name: String,
     /// A unique identifier.
     ///
     /// Always use this when referencing the tag externally.
-    uuid: TagIdent,
+    pub uuid: Uuid,
     /// The section this tag belongs to.
-    tag_section: Option<TagSection>,
+    pub tag_section: Option<Uuid>,
     /// The other tags this tag "implies". For example, tags "christmas" and
     /// "halloween" would both imply the "holiday" tag.
-    implies: Vec<TagIdent>,
+    pub implies: Vec<Uuid>,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Deserialize)]
