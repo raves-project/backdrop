@@ -16,7 +16,7 @@ pub enum CollectionModifier {
     DateTime(DateTimeModifier),
     Format(FormatDetail),
     Kind(KindDetail),
-    Orientation(String),
+    Orientation(OrientationDetail),
 }
 
 /// A modifier that applies `OR`/`NOT`` logic to modifier expressions.
