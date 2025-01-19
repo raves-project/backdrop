@@ -1,4 +1,6 @@
-use super::details::{DateDetail, FormatDetail, KindDetail, TagDetail};
+use sea_query::SimpleExpr;
+
+use super::details::{DateDetail, FormatDetail, KindDetail, OrientationDetail, TagDetail};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum DateTimeModifier {
@@ -52,18 +54,12 @@ pub enum Expr {
     Boolean(BooleanModifier),
     Other(OtherModifier),
 }
-
-pub struct PreExecutionQuery {
-    pub query: String,
-    // pub parameters: Vec<Value>, // FIXME: no clue what i was cookin here. `surrealql::Value`..?
+/// A modifier must become a query to be used.
+///
+/// All modifiers must implement this trait!
+pub trait ToQuery {
+    /// Converts the modifier into a query for use in querying the database.
+    ///
+    /// This assumes that each modifier can become a query clause.
+    fn to_query(self) -> SimpleExpr;
 }
-
-// /// A modifier must become a query to be used.
-// ///
-// /// All modifiers must implement this trait!
-// pub trait ToQuery {
-//     /// Converts the modifier into a query for use in querying the database.
-//     ///
-//     /// This assumes that each modifier can become a query string.
-//     fn to_query(&self) -> Result<Query, surrealdb::error::Db>;
-// }

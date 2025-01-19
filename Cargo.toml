@@ -47,6 +47,8 @@ chrono = { version = "0.4.39", features = ["serde"] }
 uuid = { version = "1.12.0", features = ["v4", "serde"] }
 avif-parse = "1.3.2"
 blake3 = { version = "1.5.5", features = ["mmap", "rayon"] }
+sea-query = { version = "0.32.1", default-features = false, features = ["derive", "backend-sqlite", "with-chrono", "chrono"] }
+sea-query-binder = { version = "0.7.0", features = ["chrono", "runtime-tokio", "sqlx-sqlite", "with-chrono"] }
 # crc32fast = "1.4.2"
 
 # sys dependencies
