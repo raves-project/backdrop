@@ -3,7 +3,11 @@ use super::details::{DateDetail, FormatDetail, KindDetail, TagDetail};
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum DateTimeModifier {
     Before(DateDetail),
-    During(DateDetail),
+    // TODO: this would be kinda cool...
+    // Between {
+    //     start: DateDetail,
+    //     end: DateDetail
+    // },
     After(DateDetail),
 }
 
