@@ -23,8 +23,21 @@ pub enum SpecificMetadata {
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct OtherMetadataValue {
+    // note: this is on the value since putting it on the key makes it difficult
+    // to actually use in the map lol
+    //
+    // TODO: maybe just do this on the frontend manually?
     pub user_facing_name: Option<String>,
     pub value: String,
+}
+
+impl OtherMetadataValue {
+    pub fn new(name: impl AsRef<str>, value: impl AsRef<str>) -> Self {
+        Self {
+            user_facing_name: Some(name.as_ref().to_string()),
+            value: value.as_ref().to_string(),
+        }
+    }
 }
 
 /// A representation for uncommon metadata that can only be read.
