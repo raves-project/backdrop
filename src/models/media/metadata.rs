@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
+
+use fraction::GenericFraction;
 
 /// Metadata "specific" to one type of media.
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
@@ -63,10 +65,6 @@ impl PartialOrd for OtherMetadataMap {
         self.0.len().partial_cmp(&other.0.len())
     }
 }
-
-use std::cmp::Ordering;
-
-use fraction::GenericFraction;
 
 /// Resolution, currently capped at 65,535 x 65,535.
 ///
