@@ -14,7 +14,6 @@ mod tests {
 
     use camino::Utf8PathBuf;
     use temp_dir::TempDir;
-    use uuid::Uuid;
 
     use crate::common::{self, Setup};
 

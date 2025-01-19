@@ -103,6 +103,9 @@ impl std::fmt::Display for MediaKind {
 }
 
 /// A representation of a media file's MIME format.
+//
+// MAINTAINER NOTE: if you change the names of these fields, you also need to
+// change the filter/searching modifiers for `Format`!
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, serde::Serialize, serde::Deserialize)]
 pub struct Format {
     /// The "kind" of media used in this format. (image, video, animated image, etc..?)
@@ -122,7 +125,7 @@ impl Format {
         tracing::debug!("creating format from mime type `{mime}`...");
 
         let mut s = mime.split('/');
-        let (raw_kind, raw_type) = (s.next()?, s.next()?);
+        let raw_kind = s.next()?;
 
         // TODO: annoying parsing for animated media.
         // maybe find a library for that...
@@ -136,7 +139,7 @@ impl Format {
 
         Some(Self {
             media_kind: kind,
-            mime_type: raw_type.to_string(),
+            mime_type: mime.into(),
         })
     }
 
