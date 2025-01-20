@@ -443,8 +443,15 @@ mod tests {
         /// creates a database with some entries in it...
         #[expect(clippy::inconsistent_digit_grouping, reason = "easier to read")]
         async fn setup_db() -> PoolConnection<Sqlite> {
+            tracing_subscriber::fmt()
+                .with_max_level(tracing::Level::DEBUG)
+                .init();
+
+            let db_folder = temp_dir().join(Uuid::new_v4().to_string());
+            tokio::fs::create_dir_all(&db_folder).await.unwrap();
+
             database::DB_FOLDER_PATH
-                .set(temp_dir().try_into().unwrap())
+                .set(db_folder.try_into().unwrap())
                 .unwrap();
 
             let mut conn = DATABASE.acquire().await.unwrap();
