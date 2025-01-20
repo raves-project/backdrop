@@ -111,6 +111,18 @@ impl MediaBuilder {
     /// 7. Return it.
     #[tracing::instrument(skip(self))]
     async fn build_internal(mut self, path: &Utf8Path) -> Result<Media, RavesError> {
+        // before anything, let's make sure the media file has an album to use!
+        let album = path
+            .parent()
+            .map(|p| p.to_path_buf().to_string())
+            .inspect(|parent| {
+                tracing::debug!("Found album (parent) for media file! path: {parent}")
+            })
+            .ok_or_else(|| {
+                tracing::warn!("Given a supposed file path, but failed to find its parent!");
+                RavesError::MediaFilePathNoParent(path.to_path_buf())
+            })?;
+
         // grab format and apply it to self
         let format = format(path).await?;
         let mime_type = format.mime_type();
@@ -184,11 +196,14 @@ impl MediaBuilder {
         Ok(Media {
             id,
 
+            album: album.to_string(),
             path: path.to_string(),
+
             filesize: self.filesize.ok_or(RavesError::FileMissingMetadata(
                 path.to_string(),
                 "no file size given".into(),
             ))?,
+
             creation_date: self.creation_date,
             modification_date: self.modification_date,
 
@@ -376,6 +391,7 @@ mod tests {
         let old_media = Media {
             id: Uuid::nil(),
             path: path.to_string(),
+            album: "tests/assets".into(),
             filesize: 0,
             format: Json(Format::new_from_mime("image/avif").unwrap()),
             creation_date: None,

@@ -40,6 +40,8 @@ pub static DATABASE: LazyLock<Pool<Sqlite>> = LazyLock::new(|| {
         panic!("No database folder path given.");
     };
 
+    tracing::debug!("Loading from database at `{raves_db_folder}`...");
+
     // ensure the path exists
     match raves_db_folder.try_exists() {
         Ok(true) => (),

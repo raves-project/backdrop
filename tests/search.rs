@@ -159,9 +159,6 @@ mod tests {
         /// look in comment/description/etc. fields of any attached metadata.
         #[tokio::test]
         async fn collection_mod_literal() {
-            tracing_subscriber::fmt()
-                .with_max_level(tracing::Level::DEBUG)
-                .init();
             let mut conn: PoolConnection<Sqlite> = setup_db().await;
 
             // try searching for "A.JPG" (in caps)
@@ -192,9 +189,6 @@ mod tests {
         #[tokio::test]
         #[expect(clippy::inconsistent_digit_grouping, reason = "unix time fmting")]
         async fn collection_mod_datetime() {
-            tracing_subscriber::fmt()
-                .with_max_level(tracing::Level::DEBUG)
-                .init();
             let mut conn: PoolConnection<Sqlite> = setup_db().await;
 
             // we'll try before + created here:
@@ -458,6 +452,7 @@ mod tests {
             let media_1 = Media {
                 id: Uuid::from_u128(1),
                 path: "/home/barrett/Videos/eceg_ditto_dill.mp4".into(),
+                album: "/home/barrett/Videos".into(),
                 filesize: 1024 * 1024 * 512, // 512 MiB
                 format: Format::new_from_mime("video/mp4")
                     .expect("format creation")
@@ -492,6 +487,7 @@ mod tests {
             let media_2 = Media {
                 id: Uuid::from_u128(2),
                 path: "/home/barrett/Downloads/vade.png".into(),
+                album: "/home/barrett/Downloads".into(),
                 filesize: (1024 * 34) + (230), // 34.2 KiB
                 format: Format::new_from_mime("image/png").unwrap().into(),
                 creation_date: Some(DateTime::from_timestamp_nanos(1737137976_000_000_000)),
@@ -507,6 +503,7 @@ mod tests {
             let media_3 = Media {
                 id: Uuid::from_u128(3),
                 path: "/home/barrett/Downloads/a.jpg".into(),
+                album: "/home/barrett/Downloads".into(),
                 filesize: 1024 * 60, // 60 KiB
                 format: Format::new_from_mime("image/jpeg").unwrap().into(),
                 creation_date: Some(DateTime::from_timestamp_nanos(1730329781_000_000_000)),
@@ -522,6 +519,7 @@ mod tests {
             let media_4 = Media {
                 id: Uuid::from_u128(4),
                 path: "/home/barrett/Pictures/2024-02-09 14-53-52.mkv-00:00:08.500.png".into(),
+                album: "/home/barrett/Pictures".into(),
                 filesize: 1024 * 765, // 765 KiB
                 format: Format::new_from_mime("image/png").unwrap().into(),
                 creation_date: Some(DateTime::from_timestamp_nanos(1725306903_000_000_000)),
@@ -537,7 +535,8 @@ mod tests {
             // a bunch of null-ish values >:)
             let media_5 = Media {
                 id: Uuid::nil(),
-                path: "".into(),
+                album: "/".into(),
+                path: "/nil.notpng.farts".into(),
                 filesize: 1024 * 765, // 765 KiB
                 format: Format::new_from_mime("image/png").unwrap().into(),
                 creation_date: None,
