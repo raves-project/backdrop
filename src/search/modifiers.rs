@@ -19,9 +19,9 @@ pub enum DateTimeModifier {
 pub enum CollectionModifier {
     Tag(TagDetail),
 
-    /// Searches for media within a certain folder.
+    /// Searches for media within a folder with the given album path.
     ///
-    /// This folder is at the given path and must exist!
+    /// That's just the folder the media is in.
     Album(Utf8PathBuf),
     Literal(String),
     DateTime(DateTimeModifier),

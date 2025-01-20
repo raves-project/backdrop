@@ -14,6 +14,7 @@ pub enum Info {
     Table,
     Id,
     Path,
+    Album,
     Filesize,
     Format,
     CreationDate,
@@ -72,9 +73,11 @@ impl ToQuery for CollectionModifier {
                 }
             },
 
-            // FIXME: based on album uuid. that part's easy.
-            // but how do we choose the table?
-            CollectionModifier::Album(_album_uuid) => todo!(),
+            // based on containing folder!
+            CollectionModifier::Album(path) => {
+                tracing::debug!("Checking for media file with album name: `{path}`...");
+                Expr::col(Info::Album).like(path)
+            }
 
             // ez pz, just add a 'LIKE' clause with `.like(<lit>)`
             CollectionModifier::Literal(lit) => {
