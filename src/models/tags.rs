@@ -48,8 +48,8 @@ impl Tag {
     /// Creates a new tag **representation** for testing.
     ///
     /// It will not be stored in the database or anything like that.
-    #[cfg(test)]
-    pub(crate) fn new_testing(name: impl AsRef<str>) -> Self {
+    #[doc(hidden)]
+    pub fn new_testing(name: impl AsRef<str>) -> Self {
         Self {
             name: name.as_ref().to_string(),
             uuid: Uuid::new_v4(),

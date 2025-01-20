@@ -23,6 +23,23 @@ pub enum SpecificMetadata {
     },
 }
 
+impl SpecificMetadata {
+    pub fn new_image() -> Self {
+        Self::Image {}
+    }
+
+    pub fn new_animated_image(frame_count: u32, framerate: Framerate) -> Self {
+        Self::AnimatedImage {
+            frame_count,
+            framerate,
+        }
+    }
+
+    pub fn new_video(length: f64) -> Self {
+        Self::Video { length }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct OtherMetadataValue {
     // note: this is on the value since putting it on the key makes it difficult

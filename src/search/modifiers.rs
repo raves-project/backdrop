@@ -1,3 +1,4 @@
+use camino::Utf8PathBuf;
 use sea_query::SimpleExpr;
 
 use super::details::{DateDetail, FormatDetail, KindDetail, OrientationDetail, TagDetail};
@@ -17,7 +18,11 @@ pub enum DateTimeModifier {
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum CollectionModifier {
     Tag(TagDetail),
-    Album(String),
+
+    /// Searches for media within a certain folder.
+    ///
+    /// This folder is at the given path and must exist!
+    Album(Utf8PathBuf),
     Literal(String),
     DateTime(DateTimeModifier),
     Format(FormatDetail),
