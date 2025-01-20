@@ -440,6 +440,41 @@ mod tests {
             }
         }
 
+        #[tokio::test]
+        async fn collection_mod_album() {
+            let mut conn = setup_db().await;
+
+            // "Downloads" album
+            {
+                let album_mod = CollectionModifier::Album("/home/barrett/Downloads".into());
+
+                let (select, values) = sea_query::Query::select()
+                    .column(Asterisk)
+                    .from(Info::Table)
+                    .cond_where(Cond::all().add(album_mod.to_query()))
+                    .build_sqlx(SqliteQueryBuilder);
+
+                assert_eq!(r#"SELECT * FROM "info" WHERE "album" LIKE ?"#, select);
+                assert_eq!(
+                    values.0 .0.first().unwrap(),
+                    &sea_query::Value::String(Some(Box::new(String::from(
+                        "/home/barrett/Downloads"
+                    ))))
+                );
+
+                let res = sqlx::query_as_with::<_, Media, _>(&select, values)
+                    .fetch_all(&mut *conn)
+                    .await
+                    .unwrap();
+
+                assert_eq!(res.len(), 2);
+
+                let mut res_iter = res.into_iter();
+                assert!(res_iter.any(|media| media.id == Uuid::from_u128(2)));
+                assert!(res_iter.any(|media| media.id == Uuid::from_u128(3)));
+            }
+        }
+
         /// creates a database with some entries in it...
         #[expect(clippy::inconsistent_digit_grouping, reason = "easier to read")]
         async fn setup_db() -> PoolConnection<Sqlite> {
