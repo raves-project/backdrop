@@ -442,4 +442,32 @@ mod tests {
             "post-insert same first seen dates"
         );
     }
+
+    /// Checks that the `MediaBuilder` can correctly find albums.
+    #[tokio::test]
+    async fn album() {
+        let temp_dir = TempDir::new().unwrap();
+        let album_path = temp_dir.path().join("farts album");
+        let file_path = album_path.join("fear.avif");
+
+        // make a new folder in the temp_dir called "farts album"
+        tokio::fs::create_dir_all(temp_dir.path().join("farts album"))
+            .await
+            .unwrap();
+
+        database::DB_FOLDER_PATH
+            .set(Utf8PathBuf::try_from(temp_dir.path().to_path_buf()).unwrap())
+            .unwrap();
+
+        tokio::fs::copy("tests/assets/fear.avif", &file_path)
+            .await
+            .unwrap();
+
+        let media = MediaBuilder::default()
+            .build(Utf8PathBuf::try_from(file_path).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(media.album, album_path.to_string_lossy().to_string());
+    }
 }
