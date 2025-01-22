@@ -26,7 +26,7 @@ mod tests {
         let task = tokio::spawn(Watch::watch());
 
         // sleep for a bit
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
 
         // ensure the watcher is still running
         assert!(!task.is_finished(), "watcher should run indefinitely!");
@@ -64,13 +64,13 @@ mod tests {
             .expect("remove all from info table");
 
         // copy a photo to the temp dir
-        tokio::time::sleep(Duration::from_secs(3)).await;
+        tokio::time::sleep(Duration::from_millis(150)).await;
         tokio::fs::copy("tests/assets/fear.avif", temp_dir_path.join("fear.avif"))
             .await
             .expect("copy to temp dir should work");
 
         // wait... then check if we got metadata!
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_millis(150)).await;
         let media = sqlx::query_as::<_, Media>(&format!("SELECT * FROM {INFO_TABLE}"))
             .fetch_one(&mut *conn)
             .await
