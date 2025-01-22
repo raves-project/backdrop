@@ -1,4 +1,6 @@
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
+
+use fraction::GenericFraction;
 
 /// Metadata "specific" to one type of media.
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
@@ -13,13 +15,48 @@ pub enum SpecificMetadata {
     },
 
     #[non_exhaustive]
-    Video { length: f64 },
+    Video {
+        /// The video's length in seconds.
+        length: f64,
+        // TODO: framerate (see below)
+        // framerate: Framerate,
+    },
+}
+
+impl SpecificMetadata {
+    pub fn new_image() -> Self {
+        Self::Image {}
+    }
+
+    pub fn new_animated_image(frame_count: u32, framerate: Framerate) -> Self {
+        Self::AnimatedImage {
+            frame_count,
+            framerate,
+        }
+    }
+
+    pub fn new_video(length: f64) -> Self {
+        Self::Video { length }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, serde::Serialize, serde::Deserialize)]
 pub struct OtherMetadataValue {
+    // note: this is on the value since putting it on the key makes it difficult
+    // to actually use in the map lol
+    //
+    // TODO: maybe just do this on the frontend manually?
     pub user_facing_name: Option<String>,
     pub value: String,
+}
+
+impl OtherMetadataValue {
+    pub fn new(name: impl AsRef<str>, value: impl AsRef<str>) -> Self {
+        Self {
+            user_facing_name: Some(name.as_ref().to_string()),
+            value: value.as_ref().to_string(),
+        }
+    }
 }
 
 /// A representation for uncommon metadata that can only be read.
@@ -45,10 +82,6 @@ impl PartialOrd for OtherMetadataMap {
         self.0.len().partial_cmp(&other.0.len())
     }
 }
-
-use std::cmp::Ordering;
-
-use fraction::GenericFraction;
 
 /// Resolution, currently capped at 65,535 x 65,535.
 ///
@@ -87,6 +120,9 @@ impl std::fmt::Display for MediaKind {
 }
 
 /// A representation of a media file's MIME format.
+//
+// MAINTAINER NOTE: if you change the names of these fields, you also need to
+// change the filter/searching modifiers for `Format`!
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, serde::Serialize, serde::Deserialize)]
 pub struct Format {
     /// The "kind" of media used in this format. (image, video, animated image, etc..?)
@@ -106,7 +142,7 @@ impl Format {
         tracing::debug!("creating format from mime type `{mime}`...");
 
         let mut s = mime.split('/');
-        let (raw_kind, raw_type) = (s.next()?, s.next()?);
+        let raw_kind = s.next()?;
 
         // TODO: annoying parsing for animated media.
         // maybe find a library for that...
@@ -120,7 +156,7 @@ impl Format {
 
         Some(Self {
             media_kind: kind,
-            mime_type: raw_type.to_string(),
+            mime_type: mime.into(),
         })
     }
 

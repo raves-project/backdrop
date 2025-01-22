@@ -4,9 +4,9 @@
 
 use std::path::PathBuf;
 
-use crate::models::media::metadata::Framerate;
+use crate::models::media::metadata::{Framerate, MediaKind};
 
-use jiff::Zoned;
+use chrono::{DateTime, Utc};
 
 /// the location of media
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
@@ -16,10 +16,9 @@ pub struct PathDetail(pub PathBuf);
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum DateDetail {
     // TODO: allow dates, times, or both. for now, assume manual conversion
-    Created(Zoned),
-    Modified(Zoned),
-    Accessed(Zoned),
-    FirstSeen(Zoned),
+    Created(DateTime<Utc>),
+    Modified(DateTime<Utc>),
+    FirstSeen(DateTime<Utc>),
 }
 
 /// "webm", "avif", etc.
@@ -32,8 +31,19 @@ pub enum FormatDetail {
 /// "video", "image", etc.
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum KindDetail {
-    Image,
+    Photo,
+    AnimatedPhoto,
     Video,
+}
+
+impl From<KindDetail> for MediaKind {
+    fn from(value: KindDetail) -> Self {
+        match value {
+            KindDetail::Photo => Self::Photo,
+            KindDetail::AnimatedPhoto => Self::AnimatedPhoto,
+            KindDetail::Video => Self::Video,
+        }
+    }
 }
 
 /// fps of a video
@@ -50,6 +60,8 @@ pub enum TagDetail {
     TagName(String),
     PersonTagName(String),
     PersonTagWithMarker(String, String),
+
+    /// The number of tags on a media file.
     Count(u8, Comparison),
 }
 
@@ -60,6 +72,20 @@ pub enum Comparison {
     Equal,
     GreaterOrEqual,
     Greater,
+}
+
+impl core::fmt::Display for Comparison {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let cmp = match self {
+            Self::Less => "<",
+            Self::LessOrEqual => "<=",
+            Self::Equal => "=",
+            Self::GreaterOrEqual => ">=",
+            Self::Greater => ">",
+        };
+
+        f.write_str(cmp)
+    }
 }
 
 /// "landscape", "portrait", "square"

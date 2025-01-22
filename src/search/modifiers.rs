@@ -1,9 +1,16 @@
-use super::details::{DateDetail, FormatDetail, KindDetail, TagDetail};
+use camino::Utf8PathBuf;
+use sea_query::SimpleExpr;
+
+use super::details::{DateDetail, FormatDetail, KindDetail, OrientationDetail, TagDetail};
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum DateTimeModifier {
     Before(DateDetail),
-    During(DateDetail),
+    // TODO: this would be kinda cool...
+    // Between {
+    //     start: DateDetail,
+    //     end: DateDetail
+    // },
     After(DateDetail),
 }
 
@@ -11,12 +18,16 @@ pub enum DateTimeModifier {
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub enum CollectionModifier {
     Tag(TagDetail),
-    Album(String),
+
+    /// Searches for media within a folder with the given album path.
+    ///
+    /// That's just the folder the media is in.
+    Album(Utf8PathBuf),
     Literal(String),
     DateTime(DateTimeModifier),
     Format(FormatDetail),
     Kind(KindDetail),
-    Orientation(String),
+    Orientation(OrientationDetail),
 }
 
 /// A modifier that applies `OR`/`NOT`` logic to modifier expressions.
@@ -48,18 +59,12 @@ pub enum Expr {
     Boolean(BooleanModifier),
     Other(OtherModifier),
 }
-
-pub struct PreExecutionQuery {
-    pub query: String,
-    // pub parameters: Vec<Value>, // FIXME: no clue what i was cookin here. `surrealql::Value`..?
+/// A modifier must become a query to be used.
+///
+/// All modifiers must implement this trait!
+pub trait ToQuery {
+    /// Converts the modifier into a query for use in querying the database.
+    ///
+    /// This assumes that each modifier can become a query clause.
+    fn to_query(self) -> SimpleExpr;
 }
-
-// /// A modifier must become a query to be used.
-// ///
-// /// All modifiers must implement this trait!
-// pub trait ToQuery {
-//     /// Converts the modifier into a query for use in querying the database.
-//     ///
-//     /// This assumes that each modifier can become a query string.
-//     fn to_query(&self) -> Result<Query, surrealdb::error::Db>;
-// }

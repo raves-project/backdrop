@@ -211,7 +211,8 @@ mod tests {
     fn create_default_media() -> Media {
         Media {
             id: Uuid::nil(),
-            path: "a".into(),
+            path: "/a/b.jpg".into(),
+            album: "a".into(),
             filesize: 1024,
             format: Json(Format::new_from_mime("image/jpeg").unwrap()),
             creation_date: None,

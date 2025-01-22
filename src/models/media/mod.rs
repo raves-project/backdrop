@@ -37,6 +37,9 @@ pub struct Media {
     /// The last known file path for this media file.
     pub path: String,
 
+    /// Last known path of its containing folder.
+    pub album: String,
+
     /// How large the file is, in bytes.
     pub filesize: i64,
 
@@ -94,12 +97,13 @@ impl InsertIntoTable for Media {
         sqlx::query!(
             r#"
         INSERT INTO info 
-        (id, path, filesize, format, creation_date, modification_date, first_seen_date, width_px, height_px, specific_metadata, other_metadata, tags)
+        (id, path, album, filesize, format, creation_date, modification_date, first_seen_date, width_px, height_px, specific_metadata, other_metadata, tags)
         VALUES
-        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         ON CONFLICT(id)
         DO UPDATE SET
             path = excluded.path,
+            album = excluded.album,
             filesize = excluded.filesize,
             format = excluded.format,
             creation_date = excluded.creation_date,
@@ -111,6 +115,7 @@ impl InsertIntoTable for Media {
         "#,
             self.id,
             self.path,
+            self.album,
             self.filesize,
             self.format,
             self.creation_date,

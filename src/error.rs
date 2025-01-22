@@ -41,6 +41,9 @@ pub enum RavesError {
         error: std::io::Error,
     },
 
+    #[error("Failed to find media file's parent. path: {_0}")]
+    MediaFilePathNoParent(Utf8PathBuf),
+
     #[error("The media file at `{path}` does not appear to contain MIME (file type) data.")]
     NoMimeData { path: String },
 

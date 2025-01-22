@@ -111,6 +111,18 @@ impl MediaBuilder {
     /// 7. Return it.
     #[tracing::instrument(skip(self))]
     async fn build_internal(mut self, path: &Utf8Path) -> Result<Media, RavesError> {
+        // before anything, let's make sure the media file has an album to use!
+        let album = path
+            .parent()
+            .map(|p| p.to_path_buf().to_string())
+            .inspect(|parent| {
+                tracing::debug!("Found album (parent) for media file! path: {parent}")
+            })
+            .ok_or_else(|| {
+                tracing::warn!("Given a supposed file path, but failed to find its parent!");
+                RavesError::MediaFilePathNoParent(path.to_path_buf())
+            })?;
+
         // grab format and apply it to self
         let format = format(path).await?;
         let mime_type = format.mime_type();
@@ -184,11 +196,14 @@ impl MediaBuilder {
         Ok(Media {
             id,
 
+            album: album.to_string(),
             path: path.to_string(),
+
             filesize: self.filesize.ok_or(RavesError::FileMissingMetadata(
                 path.to_string(),
                 "no file size given".into(),
             ))?,
+
             creation_date: self.creation_date,
             modification_date: self.modification_date,
 
@@ -342,7 +357,7 @@ pub fn get_video_len(path: &Utf8Path) -> Result<SpecificMetadata, RavesError> {
 
 #[cfg(test)]
 mod tests {
-    use std::env::temp_dir;
+    use temp_dir::TempDir;
 
     use camino::Utf8PathBuf;
     use chrono::{DateTime, Utc};
@@ -362,9 +377,10 @@ mod tests {
     /// The `MediaBuilder` should keep the `id` and `first_seen_date` fields as-is.
     #[tokio::test]
     async fn media_builder_keeps_static_fields() {
+        let temp_dir = TempDir::new().unwrap();
         // set up the db
         database::DB_FOLDER_PATH
-            .set(Utf8PathBuf::try_from(temp_dir()).unwrap())
+            .set(Utf8PathBuf::try_from(temp_dir.path().to_path_buf()).unwrap())
             .unwrap();
 
         let path = Utf8PathBuf::from("tests/assets/fear.avif")
@@ -375,6 +391,7 @@ mod tests {
         let old_media = Media {
             id: Uuid::nil(),
             path: path.to_string(),
+            album: "tests/assets".into(),
             filesize: 0,
             format: Json(Format::new_from_mime("image/avif").unwrap()),
             creation_date: None,
@@ -424,5 +441,33 @@ mod tests {
             old_media.first_seen_date, inserted_new_media.first_seen_date,
             "post-insert same first seen dates"
         );
+    }
+
+    /// Checks that the `MediaBuilder` can correctly find albums.
+    #[tokio::test]
+    async fn album() {
+        let temp_dir = TempDir::new().unwrap();
+        let album_path = temp_dir.path().join("farts album");
+        let file_path = album_path.join("fear.avif");
+
+        // make a new folder in the temp_dir called "farts album"
+        tokio::fs::create_dir_all(temp_dir.path().join("farts album"))
+            .await
+            .unwrap();
+
+        database::DB_FOLDER_PATH
+            .set(Utf8PathBuf::try_from(temp_dir.path().to_path_buf()).unwrap())
+            .unwrap();
+
+        tokio::fs::copy("tests/assets/fear.avif", &file_path)
+            .await
+            .unwrap();
+
+        let media = MediaBuilder::default()
+            .build(Utf8PathBuf::try_from(file_path).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(media.album, album_path.to_string_lossy().to_string());
     }
 }

@@ -2,7 +2,7 @@
 
 pub mod details;
 pub mod modifiers;
-// pub mod query;
+pub mod query;
 pub mod sort;
 
 /// `modifier1 AND modifier2`

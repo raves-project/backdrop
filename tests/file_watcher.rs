@@ -4,7 +4,7 @@ mod common;
 
 #[cfg(test)]
 mod tests {
-    use std::{env::temp_dir, time::Duration};
+    use std::time::Duration;
 
     use backdrop::{
         database::{DATABASE, INFO_TABLE},
@@ -13,7 +13,7 @@ mod tests {
     };
 
     use camino::Utf8PathBuf;
-    use uuid::Uuid;
+    use temp_dir::TempDir;
 
     use crate::common::{self, Setup};
 
@@ -26,7 +26,7 @@ mod tests {
         let task = tokio::spawn(Watch::watch());
 
         // sleep for a bit
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_millis(100)).await;
 
         // ensure the watcher is still running
         assert!(!task.is_finished(), "watcher should run indefinitely!");
@@ -41,16 +41,15 @@ mod tests {
     #[tokio::test]
     async fn find_file_in_temp_dir() {
         // generate a temp dir
-        let temp_dir = Utf8PathBuf::try_from(temp_dir())
-            .unwrap()
-            .join(Uuid::new_v4().to_string());
-        println!("temp dir located at: `{temp_dir}`");
+        let temp_dir = TempDir::new().unwrap();
+        let temp_dir_path = Utf8PathBuf::try_from(temp_dir.path().to_path_buf()).unwrap();
+        println!("temp dir located at: `{temp_dir_path}`");
         tokio::fs::create_dir_all(&temp_dir).await.unwrap();
 
         // set up the app
         common::setup(Setup {
             port: 6670,
-            watched_folders: [temp_dir.clone()].into(),
+            watched_folders: [temp_dir_path.clone()].into(),
         })
         .await;
         let mut conn = DATABASE.acquire().await.unwrap();
@@ -65,13 +64,13 @@ mod tests {
             .expect("remove all from info table");
 
         // copy a photo to the temp dir
-        tokio::time::sleep(Duration::from_secs(3)).await;
-        tokio::fs::copy("tests/assets/fear.avif", temp_dir.join("fear.avif"))
+        tokio::time::sleep(Duration::from_millis(150)).await;
+        tokio::fs::copy("tests/assets/fear.avif", temp_dir_path.join("fear.avif"))
             .await
             .expect("copy to temp dir should work");
 
         // wait... then check if we got metadata!
-        tokio::time::sleep(Duration::from_secs(5)).await;
+        tokio::time::sleep(Duration::from_millis(150)).await;
         let media = sqlx::query_as::<_, Media>(&format!("SELECT * FROM {INFO_TABLE}"))
             .fetch_one(&mut *conn)
             .await

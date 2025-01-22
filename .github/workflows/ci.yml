@@ -18,10 +18,10 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Install `nasm`
-        run: sudo apt-get install yasm -y
+      - name: Install `yasm`
+        run: sudo apt-get update && sudo apt-get install build-essential yasm -y
 
       - name: Set up Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -47,7 +47,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache cargo bin # bc wow why does it take three minutes to build `cargo-deny`
+      - name: Cache cargo bin
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin
@@ -61,17 +61,50 @@ jobs:
         with:
           tool: cargo-deny,cargo-nextest,cargo-rdme
 
-      - name: Check for unused dependencies
-        uses: bnjbvr/cargo-machete@main
-
-      - name: Make sure README is up-to-date
-        run: cargo rdme --check
-
-      - name: Run cargo-deny
-        run: cargo deny check
-
       - name: Run tests
         run: cargo nextest run
 
       - name: Run doctests
         run: cargo test --doc
+
+      - name: Check for unused dependencies
+        uses: bnjbvr/cargo-machete@main
+
+  cargo_deny:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install `cargo` tools to do more testing
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+
+  readme:
+    runs-on: ubuntu-22.04
+    steps: 
+      - uses: actions/checkout@v4
+
+      - name: Install `yasm`
+        run: sudo apt-get update && sudo apt-get install build-essential yasm -y
+
+      - name: Set up Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install `cargo` tools to do more testing
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-rdme
+
+      - name: Make sure README is up-to-date
+        run: cargo rdme --check
