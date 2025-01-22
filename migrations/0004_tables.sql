@@ -26,8 +26,6 @@ CREATE TABLE IF NOT EXISTS thumbnail(
     -- path to the thumbnail on disk
     path TEXT NOT NULL,
     -- thumbnail is for the media file with this uuid
-    --
-    -- TODO: migrate to `media_id`
     media_id TEXT NOT NULL PRIMARY KEY
 );
 
