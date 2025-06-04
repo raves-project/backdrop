@@ -1,7 +1,8 @@
-name: Cargo Build & Test
+name: Backdrop CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 env:
