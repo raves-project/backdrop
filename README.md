@@ -12,19 +12,17 @@ Internally, `backdrop` is based on a database of collected/created metadata cach
 
 ## Building
 
-To build this, there are a few dependencies you need to install. I use Fedora, but please feel free to submit PRs to add package lists for other distributions.
+To build `backdrop`, you'll need to use Pixi. Grab `curl`, then follow [Pixi's installation instructions](https://pixi.sh/latest/installation/) to set it up (don't worry - it takes maybe 30 seconds). Afterward, clone the repo and run `pixi i && pixi shell`. You can now `cargo build`!
 
-### Fedora
-
-`sudo dnf install -y nasm libgexiv2-devel libdav1d libdav1d-devel`
+If you want to make changes, ensure you open your editor within the Pixi workspace: `pixi i && pixi shell && zed . --new`. Otherwise, system dependencies will be missing...
 
 ## Status
 
 Under active development.
 
 - [ ] GOAL: Feature-completeness
-    - [ ] Metadata scanning for `Media`
-        - [ ] Images
+    - [x] Metadata scanning for `Media`
+        - [x] Images
         - [ ] GIFS
         - [ ] Video
         - [ ] General (including Folder. i.e. `stat`)
