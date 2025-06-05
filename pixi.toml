@@ -13,8 +13,10 @@ check = { cmd = "bash $PIXI_PROJECT_ROOT/.scripts/check.bash", depends-on = ["ch
 [activation.env]
 # without this, the build fails due to a lack of `libclang` within Rust's
 # `bindgen`.
+PKG_CONFIG_PATH = "$CONDA_PREFIX/lib/pkgconfig"
 LIBCLANG_PATH = "$CONDA_PREFIX/lib"
 CC = "clang"
+LD = "mold"
 
 [dependencies]
 #
@@ -22,6 +24,7 @@ CC = "clang"
 clang = ">=20.1.6,<21"
 libclang = ">=20.1.6,<21"
 pkg-config = ">=0.29.2,<0.30"
+mold = ">=2.40.0,<3"
 rust = ">=1.87.0,<1.88"
 #
 # actual system dependencies
