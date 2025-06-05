@@ -6,6 +6,9 @@ platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
 version = "0.1.0"
 
 [tasks]
+build = "cargo build"
+check_pre = "bash $PIXI_PROJECT_ROOT/.scripts/check.pre.bash"
+check = { cmd = "bash $PIXI_PROJECT_ROOT/.scripts/check.bash", depends-on = ["check_pre"] }
 
 [activation.env]
 # without this, the build fails due to a lack of `libclang` within Rust's

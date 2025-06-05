@@ -48,31 +48,19 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache cargo bin # bc wow why does it take three minutes to build `cargo-deny`
+      - name: Cache cargo bin
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin
           key: ${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
-        run: cargo build --verbose
+        run: pixi run build
 
       - name: Install `cargo` tools to do more testing
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny,cargo-nextest,cargo-rdme
+          tool: cargo-deny,cargo-machete,cargo-nextest,cargo-rdme
 
-      - name: Check for unused dependencies
-        uses: bnjbvr/cargo-machete@main
-
-      - name: Make sure README is up-to-date
-        run: cargo rdme --check
-
-      - name: Run cargo-deny
-        run: cargo deny check
-
-      - name: Run tests
-        run: cargo nextest run
-
-      - name: Run doctests
-        run: cargo test --doc
+      - name: Run checks
+        run: pixi run check
