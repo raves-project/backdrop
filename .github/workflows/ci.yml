@@ -9,13 +9,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
-    name: Rust project
+  build:
+    name: Build
     runs-on: ubuntu-22.04
     strategy:
-      matrix:
-        toolchain:
-          - stable
       fail-fast: false
 
     steps:
@@ -56,6 +53,56 @@ jobs:
 
       - name: Build
         run: pixi run build
+
+  check:
+    name: Run checks
+    runs-on: ubuntu-22.04
+    needs: build
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install an assembler
+        run: sudo apt-get install yasm -y
+
+      - uses: prefix-dev/setup-pixi@v0.8.8
+        with:
+          pixi-version: v0.44.0
+          cache: true
+
+      - uses: actions/cache@v4
+        name: Restore cargo registry
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - uses: actions/cache@v4
+        name: Restore cargo index
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+
+      - uses: actions/cache@v4
+        name: Restore cargo build outputs
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-${{ matrix.toolchain }}-
+
+      - uses: actions/cache@v4
+        name: Restore cargo bin
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bin-
 
       - name: Install `cargo` tools to do more testing
         uses: taiki-e/install-action@v2
