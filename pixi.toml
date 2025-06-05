@@ -1,0 +1,36 @@
+[workspace]
+authors = ["Barrett <contact@barretts.club>"]
+channels = ["conda-forge"]
+name = "backdrop"
+platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+build = "cargo build --profile ci"
+check_pre = "bash $PIXI_PROJECT_ROOT/.scripts/check.pre.bash"
+check = { cmd = "bash $PIXI_PROJECT_ROOT/.scripts/check.bash", depends-on = ["check_pre"] }
+
+[activation.env]
+# without this, the build fails due to a lack of `libclang` within Rust's
+# `bindgen`.
+PKG_CONFIG_PATH = "$CONDA_PREFIX/lib/pkgconfig"
+LIBCLANG_PATH = "$CONDA_PREFIX/lib"
+CC = "clang"
+LD = "mold"
+
+[dependencies]
+#
+# build tooling
+clang = ">=20.1.6,<21"
+libclang = ">=20.1.6,<21"
+pkg-config = ">=0.29.2,<0.30"
+mold = ">=2.40.0,<3"
+rust = ">=1.87.0,<1.88"
+#
+# actual system dependencies
+ffmpeg = ">=7.1.1"
+
+# macOS will always have its own `ar`, but for Linux, we'll need to ensure
+# we've got a working version within the workspace
+[target.linux.dependencies]
+binutils = "==2.43"

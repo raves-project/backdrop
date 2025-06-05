@@ -1,33 +1,31 @@
-name: Cargo Build & Test
+name: Backdrop CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
-    name: Rust project
+  build:
+    name: Build
     runs-on: ubuntu-22.04
     strategy:
-      matrix:
-        toolchain:
-          - stable
       fail-fast: false
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install `nasm`
+      - name: Install an assembler
         run: sudo apt-get install yasm -y
 
-      - name: Set up Rust toolchain
-        uses: actions-rs/toolchain@v1
+      # install required system dependencies
+      - uses: prefix-dev/setup-pixi@v0.8.8
         with:
-          toolchain: ${{ matrix.toolchain }}
-          override: true
+          pixi-version: v0.44.0
+          cache: true
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -47,31 +45,69 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Cache cargo bin # bc wow why does it take three minutes to build `cargo-deny`
+      - name: Cache cargo bin
         uses: actions/cache@v4
         with:
           path: ~/.cargo/bin
           key: ${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build
-        run: cargo build --verbose
+        run: pixi run build
+
+  check:
+    name: Run checks
+    runs-on: ubuntu-22.04
+    needs: build
+    strategy:
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install an assembler
+        run: sudo apt-get install yasm -y
+
+      - uses: prefix-dev/setup-pixi@v0.8.8
+        with:
+          pixi-version: v0.44.0
+          cache: true
+
+      - uses: actions/cache@v4
+        name: Restore cargo registry
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-registry-
+
+      - uses: actions/cache@v4
+        name: Restore cargo index
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-index-
+
+      - uses: actions/cache@v4
+        name: Restore cargo build outputs
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-build-target-${{ matrix.toolchain }}-
+
+      - uses: actions/cache@v4
+        name: Restore cargo bin
+        with:
+          path: ~/.cargo/bin
+          key: ${{ runner.os }}-cargo-bin-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-bin-
 
       - name: Install `cargo` tools to do more testing
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny,cargo-nextest,cargo-rdme
+          tool: cargo-deny,cargo-machete,cargo-nextest,cargo-rdme
 
-      - name: Check for unused dependencies
-        uses: bnjbvr/cargo-machete@main
-
-      - name: Make sure README is up-to-date
-        run: cargo rdme --check
-
-      - name: Run cargo-deny
-        run: cargo deny check
-
-      - name: Run tests
-        run: cargo nextest run
-
-      - name: Run doctests
-        run: cargo test --doc
+      - name: Run checks
+        run: pixi run check

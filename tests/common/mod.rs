@@ -4,11 +4,7 @@
 
 use camino::Utf8PathBuf;
 
-use std::{
-    env::temp_dir,
-    net::{Ipv4Addr, SocketAddrV4},
-    str::FromStr,
-};
+use std::{env::temp_dir, str::FromStr as _};
 
 use backdrop::{
     config::{BugReportInfo, Config, CONFIG},
@@ -44,14 +40,14 @@ impl Setup {
 #[allow(dead_code, reason = "it's used in the other tests")]
 pub async fn setup(args: Setup) {
     // create tokio-console logger + server
-    let tokio_console_layer = console_subscriber::ConsoleLayer::builder()
-        .with_default_env()
-        .server_addr(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), args.port))
-        .spawn();
+    // let tokio_console_layer = console_subscriber::ConsoleLayer::builder()
+    //     .with_default_env()
+    //     .server_addr(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), args.port))
+    //     .spawn();
 
     // start logging (plus the tokio-console stuff)
     tracing_subscriber::registry()
-        .with(tokio_console_layer)
+        // .with(tokio_console_layer)
         .with(
             tracing_subscriber::fmt::layer()
                 .with_filter(filter::EnvFilter::from_str("DEBUG,sqlx=INFO").unwrap()),
