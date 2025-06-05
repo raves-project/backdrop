@@ -6,7 +6,7 @@ platforms = ["linux-64", "linux-aarch64", "osx-arm64"]
 version = "0.1.0"
 
 [tasks]
-build = "cargo build"
+build = "cargo build --profile ci"
 check_pre = "bash $PIXI_PROJECT_ROOT/.scripts/check.pre.bash"
 check = { cmd = "bash $PIXI_PROJECT_ROOT/.scripts/check.bash", depends-on = ["check_pre"] }
 
@@ -28,7 +28,7 @@ mold = ">=2.40.0,<3"
 rust = ">=1.87.0,<1.88"
 #
 # actual system dependencies
-ffmpeg = "==7.1.1"
+ffmpeg = ">=7.1.1"
 
 # macOS will always have its own `ar`, but for Linux, we'll need to ensure
 # we've got a working version within the workspace

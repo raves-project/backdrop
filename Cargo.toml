@@ -70,3 +70,14 @@ async-ctrlc = "1.2.0"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 dirs = "6.0.0"
 anyhow = "1.0.95"
+
+[profile.ci]
+codegen-units = 256
+debug = "none"
+debug-assertions = false
+incremental = true
+inherits = "dev"
+lto = "off"
+opt-level = 0
+overflow-checks = false
+panic = "abort"
