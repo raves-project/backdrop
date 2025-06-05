@@ -63,12 +63,10 @@ blake3 = { version = "1.5.5", features = ["mmap", "rayon"] }
 [dependencies.ffmpeg-next]
 git = "https://github.com/onkoe/rust-ffmpeg"
 branch = "master"
-# features = ["build", "static"]
 features = ["build"]
 
 [dev-dependencies]
 async-ctrlc = "1.2.0"
-tracing-subscriber = "0.3.18"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 dirs = "6.0.0"
 anyhow = "1.0.95"
-console-subscriber = "0.4.1"
